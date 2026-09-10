@@ -1,0 +1,40 @@
+# Root ignores for the BulkScrubs Direct monorepo.
+#
+# api/ and web/ carry their own .gitignore for framework-specific output
+# (vendor, node_modules, .env, .nuxt, .output). What lives here is the
+# belt-and-braces: things that would be actively harmful to publish, repeated
+# at the root so a future subdirectory cannot quietly opt out of them.
+
+# --- Secrets. Never commit a real environment file. -------------------------
+.env
+.env.*
+!.env.example
+
+# --- Database dumps. These contain live customer and order data. ------------
+# api/storage/app/.gitignore already excludes the whole directory; this is the
+# second lock on the same door, because the cost of getting it wrong once is a
+# customer database in a public repository.
+*.sql
+*.sql.gz
+*.dump
+backups/
+
+# --- Published framework assets, regenerated on install ---------------------
+# `composer install` runs `artisan filament:upgrade` via post-autoload-dump,
+# which republishes these. Committing them means a 4 MB diff every upgrade.
+api/public/js/filament/
+api/public/css/filament/
+api/public/js/livewire*
+api/public/livewire/
+
+# --- Editors and operating systems ------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- Local tooling ----------------------------------------------------------
+.phpunit.result.cache
+.phpunit.cache/

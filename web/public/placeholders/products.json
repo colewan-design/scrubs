@@ -1,0 +1,1581 @@
+{
+  "note": "Placeholder imagery scraped from wearfigs.com for local development only. Not licensed for production use.",
+  "source": "https://www.wearfigs.com",
+  "scrapedAt": "2026-09-03T02:26:18.014Z",
+  "count": 143,
+  "products": [
+    {
+      "id": "mens-arad-scrub-top--navy",
+      "title": "Men's Arad Scrub Top",
+      "color": "Navy",
+      "category": "tops",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-arad-scrub-top--navy.jpg",
+        "/placeholders/products/mens-arad-scrub-top--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-axim-scrub-pants--black",
+      "title": "Men's Axim Scrub Pants",
+      "color": "Black",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-axim-scrub-pants--black.jpg",
+        "/placeholders/products/mens-axim-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-axim-scrub-pants--dark-harbor",
+      "title": "Men's Axim Scrub Pants",
+      "color": "Dark Harbor",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-axim-scrub-pants--dark-harbor.jpg",
+        "/placeholders/products/mens-axim-scrub-pants--dark-harbor--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-cairo-scrub-pants--sagewater",
+      "title": "Men's Cairo Scrub Pants",
+      "color": "Sagewater",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-cairo-scrub-pants--sagewater.jpg",
+        "/placeholders/products/mens-cairo-scrub-pants--sagewater--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-cairo-scrub-pants--smokey-taupe",
+      "title": "Men's Cairo Scrub Pants",
+      "color": "Smokey Taupe",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-cairo-scrub-pants--smokey-taupe.jpg",
+        "/placeholders/products/mens-cairo-scrub-pants--smokey-taupe--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-chisec-scrub-top--smokey-taupe",
+      "title": "Men's Chisec Scrub Top",
+      "color": "Smokey Taupe",
+      "category": "tops",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-chisec-scrub-top--smokey-taupe.jpg",
+        "/placeholders/products/mens-chisec-scrub-top--smokey-taupe--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-cobaki-scrub-jacket--dark-harbor",
+      "title": "Men's Cobaki Scrub Jacket",
+      "color": "Dark Harbor",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-cobaki-scrub-jacket--dark-harbor.jpg",
+        "/placeholders/products/mens-cobaki-scrub-jacket--dark-harbor--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-cobaki-scrub-jacket--smokey-taupe",
+      "title": "Men's Cobaki Scrub Jacket",
+      "color": "Smokey Taupe",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-cobaki-scrub-jacket--smokey-taupe.jpg",
+        "/placeholders/products/mens-cobaki-scrub-jacket--smokey-taupe--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-cobaki-vest--moss",
+      "title": "Men's Cobaki Vest",
+      "color": "Moss",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-cobaki-vest--moss.jpg",
+        "/placeholders/products/mens-cobaki-vest--moss--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-colfax-barrel-leg-scrub-pants--moss",
+      "title": "Men's Colfax Barrel Leg Scrub Pants",
+      "color": "Moss",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-colfax-barrel-leg-scrub-pants--moss.jpg",
+        "/placeholders/products/mens-colfax-barrel-leg-scrub-pants--moss--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-dawes-quarter-zip-long-sleeve-scrub-top--dark-harbor",
+      "title": "Men's Dawes Quarter Zip Long Sleeve Scrub Top",
+      "color": "Dark Harbor",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-dawes-quarter-zip-long-sleeve-scrub-top--dark-harbor.jpg",
+        "/placeholders/products/mens-dawes-quarter-zip-long-sleeve-scrub-top--dark-harbor--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-dawes-quarter-zip-long-sleeve-scrub-top--moss",
+      "title": "Men's Dawes Quarter Zip Long Sleeve Scrub Top",
+      "color": "Moss",
+      "category": "tops",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-dawes-quarter-zip-long-sleeve-scrub-top--moss.jpg",
+        "/placeholders/products/mens-dawes-quarter-zip-long-sleeve-scrub-top--moss--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-dawes-quarter-zip-scrub-top--black",
+      "title": "Men's Dawes Quarter Zip Scrub Top",
+      "color": "Black",
+      "category": "tops",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-dawes-quarter-zip-scrub-top--black.jpg",
+        "/placeholders/products/mens-dawes-quarter-zip-scrub-top--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-dawes-quarter-zip-scrub-top--moss",
+      "title": "Men's Dawes Quarter Zip Scrub Top",
+      "color": "Moss",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-dawes-quarter-zip-scrub-top--moss.jpg",
+        "/placeholders/products/mens-dawes-quarter-zip-scrub-top--moss--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-dental-student-supersoft-underscrub--white",
+      "title": "Men's Dental Student Supersoft Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-dental-student-supersoft-underscrub--white.jpg",
+        "/placeholders/products/mens-dental-student-supersoft-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-dentist-shortsleeve-underscrub--white",
+      "title": "Men's Dentist Shortsleeve Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-dentist-shortsleeve-underscrub--white.jpg",
+        "/placeholders/products/mens-dentist-shortsleeve-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-everett-straight-leg-scrub-pants--black",
+      "title": "Men's Everett Straight Leg Scrub Pants",
+      "color": "Black",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-everett-straight-leg-scrub-pants--black.jpg",
+        "/placeholders/products/mens-everett-straight-leg-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-everett-straight-leg-scrub-pants--navy",
+      "title": "Men's Everett Straight Leg Scrub Pants",
+      "color": "Navy",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-everett-straight-leg-scrub-pants--navy.jpg",
+        "/placeholders/products/mens-everett-straight-leg-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-figs-harlem-long-slim-lab-coat--black",
+      "title": "Men's Figs Harlem Long Slim Lab Coat",
+      "color": "Black",
+      "category": "lab-coats",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-figs-harlem-long-slim-lab-coat--black.jpg",
+        "/placeholders/products/mens-figs-harlem-long-slim-lab-coat--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-figs-harlem-long-slim-lab-coat--white",
+      "title": "Men's Figs Harlem Long Slim Lab Coat",
+      "color": "White",
+      "category": "lab-coats",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-figs-harlem-long-slim-lab-coat--white.jpg",
+        "/placeholders/products/mens-figs-harlem-long-slim-lab-coat--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-figs-harlem-slim-short-lab-coat--white",
+      "title": "Men's Figs Harlem Slim Short Lab Coat",
+      "color": "White",
+      "category": "lab-coats",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-figs-harlem-slim-short-lab-coat--white.jpg",
+        "/placeholders/products/mens-figs-harlem-slim-short-lab-coat--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-figs-logo-supersoft-underscrub--white",
+      "title": "Men's Figs Logo Supersoft Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-figs-logo-supersoft-underscrub--white.jpg",
+        "/placeholders/products/mens-figs-logo-supersoft-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-forster-jogger-scrub-pants--black",
+      "title": "Men's Forster Jogger Scrub Pants",
+      "color": "Black",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-forster-jogger-scrub-pants--black.jpg",
+        "/placeholders/products/mens-forster-jogger-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-harlem-short-lab-coats--white",
+      "title": "Men's Harlem Short Lab Coats",
+      "color": "White",
+      "category": "lab-coats",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-harlem-short-lab-coats--white.jpg",
+        "/placeholders/products/mens-harlem-short-lab-coats--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-healthcare-is-human-short-sleeve-graphic-tee-underscrub--optic-white",
+      "title": "Men's Healthcare Is Human Short Sleeve Graphic Tee Underscrub",
+      "color": "Optic White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-healthcare-is-human-short-sleeve-graphic-tee-underscrub--optic-white.jpg",
+        "/placeholders/products/mens-healthcare-is-human-short-sleeve-graphic-tee-underscrub--optic-white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-high-pile-fleece-pullover-jacket--navy",
+      "title": "Men's High Pile Fleece Pullover Jacket",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-high-pile-fleece-pullover-jacket--navy.jpg",
+        "/placeholders/products/mens-high-pile-fleece-pullover-jacket--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-high-pile-vest-outerwear--black",
+      "title": "Men's High Pile Vest Outerwear",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-high-pile-vest-outerwear--black.jpg",
+        "/placeholders/products/mens-high-pile-vest-outerwear--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-i-am-a-nurse-supersoft-longsleeve-underscrub--optic-white",
+      "title": "Men's I Am A Nurse Supersoft Longsleeve Underscrub",
+      "color": "Optic White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-i-am-a-nurse-supersoft-longsleeve-underscrub--optic-white.jpg",
+        "/placeholders/products/mens-i-am-a-nurse-supersoft-longsleeve-underscrub--optic-white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-leon-scrub-top--sagewater",
+      "title": "Men's Leon Scrub Top",
+      "color": "Sagewater",
+      "category": "tops",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-leon-scrub-top--sagewater.jpg",
+        "/placeholders/products/mens-leon-scrub-top--sagewater--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-luck-looks-good-on-you-supersoft-underscrub--pop-red",
+      "title": "Men's Luck Looks Good On You Supersoft Underscrub",
+      "color": "Pop Red",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-luck-looks-good-on-you-supersoft-underscrub--pop-red.jpg",
+        "/placeholders/products/mens-luck-looks-good-on-you-supersoft-underscrub--pop-red--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-makato-shortsleeve-underscrub--black",
+      "title": "Men's Makato Shortsleeve Underscrub",
+      "color": "Black",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-makato-shortsleeve-underscrub--black.jpg",
+        "/placeholders/products/mens-makato-shortsleeve-underscrub--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-makato-three-quarter-sleeve-underscrub--navy",
+      "title": "Men's Makato Three Quarter Sleeve Underscrub",
+      "color": "Navy",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-makato-three-quarter-sleeve-underscrub--navy.jpg",
+        "/placeholders/products/mens-makato-three-quarter-sleeve-underscrub--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-makato-under-scrubs--dark-smokey-taupe",
+      "title": "Men's Makato Under Scrubs",
+      "color": "Dark Smokey Taupe",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-makato-under-scrubs--dark-smokey-taupe.jpg",
+        "/placeholders/products/mens-makato-under-scrubs--dark-smokey-taupe--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-my-first-name-is-doctor-supersoft-underscrub--optic-white",
+      "title": "Men's My First Name Is Doctor Supersoft Underscrub",
+      "color": "Optic White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-my-first-name-is-doctor-supersoft-underscrub--optic-white.jpg",
+        "/placeholders/products/mens-my-first-name-is-doctor-supersoft-underscrub--optic-white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-new-supersoft-longsleeve-underscrub--black",
+      "title": "Men's New Supersoft Longsleeve Underscrub",
+      "color": "Black",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-new-supersoft-longsleeve-underscrub--black.jpg",
+        "/placeholders/products/mens-new-supersoft-longsleeve-underscrub--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-new-supersoft-shortsleeve-underscrub--white",
+      "title": "Men's New Supersoft Shortsleeve Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-new-supersoft-shortsleeve-underscrub--white.jpg",
+        "/placeholders/products/mens-new-supersoft-shortsleeve-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-norris-scrub-pants--navy",
+      "title": "Men's Norris Scrub Pants",
+      "color": "Navy",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-norris-scrub-pants--navy.jpg",
+        "/placeholders/products/mens-norris-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-nurse-graphic-shortsleeve-underscrub--white",
+      "title": "Men's Nurse Graphic Shortsleeve Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-nurse-graphic-shortsleeve-underscrub--white.jpg",
+        "/placeholders/products/mens-nurse-graphic-shortsleeve-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-nurse-practitioner-shortsleeve-underscrub--white",
+      "title": "Men's Nurse Practitioner Shortsleeve Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-nurse-practitioner-shortsleeve-underscrub--white.jpg",
+        "/placeholders/products/mens-nurse-practitioner-shortsleeve-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-contourknit-outerwear--black",
+      "title": "Men's On Shift Contourknit Outerwear",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-contourknit-outerwear--black.jpg",
+        "/placeholders/products/mens-on-shift-contourknit-outerwear--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-fleece-jacket--black",
+      "title": "Men's On Shift Fleece Jacket",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-fleece-jacket--black.jpg",
+        "/placeholders/products/mens-on-shift-fleece-jacket--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-fleece-outerwear--navy",
+      "title": "Men's On Shift Fleece Outerwear",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-fleece-outerwear--navy.jpg",
+        "/placeholders/products/mens-on-shift-fleece-outerwear--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-float-bomber-jacket--black",
+      "title": "Men's On Shift Float Bomber Jacket",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-float-bomber-jacket--black.jpg",
+        "/placeholders/products/mens-on-shift-float-bomber-jacket--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-float-bomber-vest--black",
+      "title": "Men's On Shift Float Bomber Vest",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-float-bomber-vest--black.jpg",
+        "/placeholders/products/mens-on-shift-float-bomber-vest--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-high-pile-bomber-jacket--caribbean-blue",
+      "title": "Men's On Shift High Pile Bomber Jacket",
+      "color": "Caribbean Blue",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-high-pile-bomber-jacket--caribbean-blue.jpg",
+        "/placeholders/products/mens-on-shift-high-pile-bomber-jacket--caribbean-blue--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-metallic-puffer-vest-outerwear--silver-frost",
+      "title": "Men's On Shift Metallic Puffer Vest Outerwear",
+      "color": "Silver Frost",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-metallic-puffer-vest-outerwear--silver-frost.jpg",
+        "/placeholders/products/mens-on-shift-metallic-puffer-vest-outerwear--silver-frost--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-packable-outerwear--black",
+      "title": "Men's On Shift Packable Outerwear",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-packable-outerwear--black.jpg",
+        "/placeholders/products/mens-on-shift-packable-outerwear--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-packable-puffer-vest--navy",
+      "title": "Men's On Shift Packable Puffer Vest",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-packable-puffer-vest--navy.jpg",
+        "/placeholders/products/mens-on-shift-packable-puffer-vest--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-sweater-knit-outerwear--heather-dark-charcoal",
+      "title": "Men's On Shift Sweater Knit Outerwear",
+      "color": "Heather Dark Charcoal",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-sweater-knit-outerwear--heather-dark-charcoal.jpg",
+        "/placeholders/products/mens-on-shift-sweater-knit-outerwear--heather-dark-charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-on-shift-sweater-knit-vests--heather-dark-charcoal",
+      "title": "Men's On Shift Sweater Knit Vests",
+      "color": "Heather Dark Charcoal",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-on-shift-sweater-knit-vests--heather-dark-charcoal.jpg",
+        "/placeholders/products/mens-on-shift-sweater-knit-vests--heather-dark-charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-pierre-scrub-pants--charcoal",
+      "title": "Men's Pierre Scrub Pants",
+      "color": "Charcoal",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-pierre-scrub-pants--charcoal.jpg",
+        "/placeholders/products/mens-pierre-scrub-pants--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-pisco-scrub-pants--black",
+      "title": "Men's Pisco Scrub Pants",
+      "color": "Black",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-pisco-scrub-pants--black.jpg",
+        "/placeholders/products/mens-pisco-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-pisco-scrub-pants--dark-harbor",
+      "title": "Men's Pisco Scrub Pants",
+      "color": "Dark Harbor",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-pisco-scrub-pants--dark-harbor.jpg",
+        "/placeholders/products/mens-pisco-scrub-pants--dark-harbor--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-ribbed-longsleeve-underscrub--forest-green",
+      "title": "Men's Ribbed Longsleeve Underscrub",
+      "color": "Forest Green",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-ribbed-longsleeve-underscrub--forest-green.jpg",
+        "/placeholders/products/mens-ribbed-longsleeve-underscrub--forest-green--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-star-wars-makato-underscrubs--ombre-jade",
+      "title": "Men's Star Wars Makato Underscrubs",
+      "color": "Ombre Jade",
+      "category": "underscrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-star-wars-makato-underscrubs--ombre-jade.jpg",
+        "/placeholders/products/mens-star-wars-makato-underscrubs--ombre-jade--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-star-wars-scrub-pants--jade",
+      "title": "Men's Star Wars Scrub Pants",
+      "color": "Jade",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-star-wars-scrub-pants--jade.jpg",
+        "/placeholders/products/mens-star-wars-scrub-pants--jade--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-stratton-henley-scrub-top--navy",
+      "title": "Men's Stratton Henley Scrub Top",
+      "color": "Navy",
+      "category": "tops",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-stratton-henley-scrub-top--navy.jpg",
+        "/placeholders/products/mens-stratton-henley-scrub-top--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-tansen-scrub-pants--sagewater",
+      "title": "Men's Tansen Scrub Pants",
+      "color": "Sagewater",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-tansen-scrub-pants--sagewater.jpg",
+        "/placeholders/products/mens-tansen-scrub-pants--sagewater--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-tansen-scrub-pants--smokey-taupe",
+      "title": "Men's Tansen Scrub Pants",
+      "color": "Smokey Taupe",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-tansen-scrub-pants--smokey-taupe.jpg",
+        "/placeholders/products/mens-tansen-scrub-pants--smokey-taupe--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-timmons-mock-neck-quarter-zip-scrub-top--charcoal",
+      "title": "Men's Timmons Mock Neck Quarter Zip Scrub Top",
+      "color": "Charcoal",
+      "category": "scrubs",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-timmons-mock-neck-quarter-zip-scrub-top--charcoal.jpg",
+        "/placeholders/products/mens-timmons-mock-neck-quarter-zip-scrub-top--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-troy-scrub-jacket-outerwear--navy",
+      "title": "Men's Troy Scrub Jacket Outerwear",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-troy-scrub-jacket-outerwear--navy.jpg",
+        "/placeholders/products/mens-troy-scrub-jacket-outerwear--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "mens-vernon-scrub-pants--purple-haze",
+      "title": "Men's Vernon Scrub Pants",
+      "color": "Purple Haze",
+      "category": "pants",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/mens-vernon-scrub-pants--purple-haze.jpg",
+        "/placeholders/products/mens-vernon-scrub-pants--purple-haze--alt.jpg"
+      ]
+    },
+    {
+      "id": "unisex-prescott-letterman-outerwear--navy",
+      "title": "Unisex Prescott Letterman Outerwear",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "mens",
+      "files": [
+        "/placeholders/products/unisex-prescott-letterman-outerwear--navy.jpg",
+        "/placeholders/products/unisex-prescott-letterman-outerwear--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-100-percent-awesome-supersoft-longsleeve-underscrub--optic-white",
+      "title": "Women's 100 Percent Awesome Supersoft Longsleeve Underscrub",
+      "color": "Optic White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-100-percent-awesome-supersoft-longsleeve-underscrub--optic-white.jpg",
+        "/placeholders/products/womens-100-percent-awesome-supersoft-longsleeve-underscrub--optic-white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-addison-oversized-tunic-scrub-top--charcoal",
+      "title": "Women's Addison Oversized Tunic Scrub Top",
+      "color": "Charcoal",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-addison-oversized-tunic-scrub-top--charcoal.jpg",
+        "/placeholders/products/womens-addison-oversized-tunic-scrub-top--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-arua-cropped-crewneck-one-pocket-scrub-top--lagoon",
+      "title": "Women's Arua Cropped Crewneck One Pocket Scrub Top",
+      "color": "Lagoon",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-arua-cropped-crewneck-one-pocket-scrub-top--lagoon.jpg",
+        "/placeholders/products/womens-arua-cropped-crewneck-one-pocket-scrub-top--lagoon--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-ashland-maternity-leggings--black",
+      "title": "Women's Ashland Maternity Leggings",
+      "color": "Black",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-ashland-maternity-leggings--black.jpg",
+        "/placeholders/products/womens-ashland-maternity-leggings--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-ashland-maternity-leggings--charcoal",
+      "title": "Women's Ashland Maternity Leggings",
+      "color": "Charcoal",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-ashland-maternity-leggings--charcoal.jpg",
+        "/placeholders/products/womens-ashland-maternity-leggings--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-casma-scrub-top--black",
+      "title": "Women's Casma Scrub Top",
+      "color": "Black",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-casma-scrub-top--black.jpg",
+        "/placeholders/products/womens-casma-scrub-top--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-catarina-maternity-scrub-top--navy",
+      "title": "Women's Catarina Maternity Scrub Top",
+      "color": "Navy",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-catarina-maternity-scrub-top--navy.jpg",
+        "/placeholders/products/womens-catarina-maternity-scrub-top--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-catarina-scrub-top--sagewater",
+      "title": "Women's Catarina Scrub Top",
+      "color": "Sagewater",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-catarina-scrub-top--sagewater.jpg",
+        "/placeholders/products/womens-catarina-scrub-top--sagewater--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-claire-scrub-jacket-outerwear--black",
+      "title": "Women's Claire Scrub Jacket Outerwear",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-claire-scrub-jacket-outerwear--black.jpg",
+        "/placeholders/products/womens-claire-scrub-jacket-outerwear--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-cropped-sydney-outerwear--purple-haze",
+      "title": "Women's Cropped Sydney Outerwear",
+      "color": "Purple Haze",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-cropped-sydney-outerwear--purple-haze.jpg",
+        "/placeholders/products/womens-cropped-sydney-outerwear--purple-haze--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-dental-hygienist-shortsleeve-underscrub--white",
+      "title": "Women's Dental Hygienist Shortsleeve Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-dental-hygienist-shortsleeve-underscrub--white.jpg",
+        "/placeholders/products/womens-dental-hygienist-shortsleeve-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-dental-student-supersoft-underscrub--white",
+      "title": "Women's Dental Student Supersoft Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-dental-student-supersoft-underscrub--white.jpg",
+        "/placeholders/products/womens-dental-student-supersoft-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-dentist-shortsleeve-underscrub--white",
+      "title": "Women's Dentist Shortsleeve Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-dentist-shortsleeve-underscrub--white.jpg",
+        "/placeholders/products/womens-dentist-shortsleeve-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-eliza-slim-crew-neck-scrub-top--black",
+      "title": "Women's Eliza Slim Crew Neck Scrub Top",
+      "color": "Black",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-eliza-slim-crew-neck-scrub-top--black.jpg",
+        "/placeholders/products/womens-eliza-slim-crew-neck-scrub-top--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-eliza-slim-crew-neck-scrub-top--navy",
+      "title": "Women's Eliza Slim Crew Neck Scrub Top",
+      "color": "Navy",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-eliza-slim-crew-neck-scrub-top--navy.jpg",
+        "/placeholders/products/womens-eliza-slim-crew-neck-scrub-top--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-everly-slim-v-neck-scrub-top--black",
+      "title": "Women's Everly Slim V Neck Scrub Top",
+      "color": "Black",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-everly-slim-v-neck-scrub-top--black.jpg",
+        "/placeholders/products/womens-everly-slim-v-neck-scrub-top--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-everly-slim-v-neck-scrub-top--navy",
+      "title": "Women's Everly Slim V Neck Scrub Top",
+      "color": "Navy",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-everly-slim-v-neck-scrub-top--navy.jpg",
+        "/placeholders/products/womens-everly-slim-v-neck-scrub-top--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-figs-bellevue-long-slim-lab-coat--black",
+      "title": "Women's Figs Bellevue Long Slim Lab Coat",
+      "color": "Black",
+      "category": "lab-coats",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-figs-bellevue-long-slim-lab-coat--black.jpg",
+        "/placeholders/products/womens-figs-bellevue-long-slim-lab-coat--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-figs-bellevue-long-slim-lab-coat--white",
+      "title": "Women's Figs Bellevue Long Slim Lab Coat",
+      "color": "White",
+      "category": "lab-coats",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-figs-bellevue-long-slim-lab-coat--white.jpg",
+        "/placeholders/products/womens-figs-bellevue-long-slim-lab-coat--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-figs-bellevue-short-slim-lab-coat--white",
+      "title": "Women's Figs Bellevue Short Slim Lab Coat",
+      "color": "White",
+      "category": "lab-coats",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-figs-bellevue-short-slim-lab-coat--white.jpg",
+        "/placeholders/products/womens-figs-bellevue-short-slim-lab-coat--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-figs-high-waisted-kade-scrub-pants--black",
+      "title": "Women's Figs High Waisted Kade Scrub Pants",
+      "color": "Black",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-figs-high-waisted-kade-scrub-pants--black.jpg",
+        "/placeholders/products/womens-figs-high-waisted-kade-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-figs-high-waisted-kade-scrub-pants--navy",
+      "title": "Women's Figs High Waisted Kade Scrub Pants",
+      "color": "Navy",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-figs-high-waisted-kade-scrub-pants--navy.jpg",
+        "/placeholders/products/womens-figs-high-waisted-kade-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-figs-zamora-maternity-scrub-pants--navy",
+      "title": "Women's Figs Zamora Maternity Scrub Pants",
+      "color": "Navy",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-figs-zamora-maternity-scrub-pants--navy.jpg",
+        "/placeholders/products/womens-figs-zamora-maternity-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-healthcare-is-human-short-sleeve-graphic-tee-underscrub--optic-white",
+      "title": "Women's Healthcare Is Human Short Sleeve Graphic Tee Underscrub",
+      "color": "Optic White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-healthcare-is-human-short-sleeve-graphic-tee-underscrub--optic-white.jpg",
+        "/placeholders/products/womens-healthcare-is-human-short-sleeve-graphic-tee-underscrub--optic-white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-high-pile-vest-outerwear--navy",
+      "title": "Women's High Pile Vest Outerwear",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-high-pile-vest-outerwear--navy.jpg",
+        "/placeholders/products/womens-high-pile-vest-outerwear--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-high-waisted-uman-scrub-pants--navy",
+      "title": "Women's High Waisted Uman Scrub Pants",
+      "color": "Navy",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-high-waisted-uman-scrub-pants--navy.jpg",
+        "/placeholders/products/womens-high-waisted-uman-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-isabel-scrub-pants--sagewater",
+      "title": "Women's Isabel Scrub Pants",
+      "color": "Sagewater",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-isabel-scrub-pants--sagewater.jpg",
+        "/placeholders/products/womens-isabel-scrub-pants--sagewater--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-kade-cargo-scrub-pants--navy",
+      "title": "Women's Kade Cargo Scrub Pants",
+      "color": "Navy",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-kade-cargo-scrub-pants--navy.jpg",
+        "/placeholders/products/womens-kade-cargo-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-kade-maternity-scrub-pants--black",
+      "title": "Women's Kade Maternity Scrub Pants",
+      "color": "Black",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-kade-maternity-scrub-pants--black.jpg",
+        "/placeholders/products/womens-kade-maternity-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-lenox-scrub-jacket-outerwear--moss",
+      "title": "Women's Lenox Scrub Jacket Outerwear",
+      "color": "Moss",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-lenox-scrub-jacket-outerwear--moss.jpg",
+        "/placeholders/products/womens-lenox-scrub-jacket-outerwear--moss--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-livingston-high-waisted-scrub-pants--black",
+      "title": "Women's Livingston High Waisted Scrub Pants",
+      "color": "Black",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-livingston-high-waisted-scrub-pants--black.jpg",
+        "/placeholders/products/womens-livingston-high-waisted-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-livingston-high-waisted-scrub-pants--moss",
+      "title": "Women's Livingston High Waisted Scrub Pants",
+      "color": "Moss",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-livingston-high-waisted-scrub-pants--moss.jpg",
+        "/placeholders/products/womens-livingston-high-waisted-scrub-pants--moss--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-luck-looks-good-on-you-supersoft-underscrub--pop-red",
+      "title": "Women's Luck Looks Good On You Supersoft Underscrub",
+      "color": "Pop Red",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-luck-looks-good-on-you-supersoft-underscrub--pop-red.jpg",
+        "/placeholders/products/womens-luck-looks-good-on-you-supersoft-underscrub--pop-red--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-maternity-longsleeve-underscrub--navy",
+      "title": "Women's Maternity Longsleeve Underscrub",
+      "color": "Navy",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-maternity-longsleeve-underscrub--navy.jpg",
+        "/placeholders/products/womens-maternity-longsleeve-underscrub--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-medical-assistant-shortsleeve-underscrub--white",
+      "title": "Women's Medical Assistant Shortsleeve Underscrub",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-medical-assistant-shortsleeve-underscrub--white.jpg",
+        "/placeholders/products/womens-medical-assistant-shortsleeve-underscrub--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-mid-rise-isabel-ruched-wide-leg-scrub-pants--black",
+      "title": "Women's Mid Rise Isabel Ruched Wide Leg Scrub Pants",
+      "color": "Black",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-mid-rise-isabel-ruched-wide-leg-scrub-pants--black.jpg",
+        "/placeholders/products/womens-mid-rise-isabel-ruched-wide-leg-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-mid-rise-livingston-ruched-straight-leg-scrub-pants--black",
+      "title": "Women's Mid Rise Livingston Ruched Straight Leg Scrub Pants",
+      "color": "Black",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-mid-rise-livingston-ruched-straight-leg-scrub-pants--black.jpg",
+        "/placeholders/products/womens-mid-rise-livingston-ruched-straight-leg-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-mid-rise-livingston-ruched-straight-leg-scrub-pants--moss",
+      "title": "Women's Mid Rise Livingston Ruched Straight Leg Scrub Pants",
+      "color": "Moss",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-mid-rise-livingston-ruched-straight-leg-scrub-pants--moss.jpg",
+        "/placeholders/products/womens-mid-rise-livingston-ruched-straight-leg-scrub-pants--moss--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-mid-rise-zamora-ruched-jogger-scrub-pants--navy",
+      "title": "Women's Mid Rise Zamora Ruched Jogger Scrub Pants",
+      "color": "Navy",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-mid-rise-zamora-ruched-jogger-scrub-pants--navy.jpg",
+        "/placeholders/products/womens-mid-rise-zamora-ruched-jogger-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-montex-scrub-top--charcoal",
+      "title": "Women's Montex Scrub Top",
+      "color": "Charcoal",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-montex-scrub-top--charcoal.jpg",
+        "/placeholders/products/womens-montex-scrub-top--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-montex-scrub-top--navy",
+      "title": "Women's Montex Scrub Top",
+      "color": "Navy",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-montex-scrub-top--navy.jpg",
+        "/placeholders/products/womens-montex-scrub-top--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-my-first-name-is-doctor-supersoft-underscrub--optic-white",
+      "title": "Women's My First Name Is Doctor Supersoft Underscrub",
+      "color": "Optic White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-my-first-name-is-doctor-supersoft-underscrub--optic-white.jpg",
+        "/placeholders/products/womens-my-first-name-is-doctor-supersoft-underscrub--optic-white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-contourknit-cropped-jacket--black",
+      "title": "Women's On Shift Contourknit Cropped Jacket",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-contourknit-cropped-jacket--black.jpg",
+        "/placeholders/products/womens-on-shift-contourknit-cropped-jacket--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-contourknit-outerwear--navy",
+      "title": "Women's On Shift Contourknit Outerwear",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-contourknit-outerwear--navy.jpg",
+        "/placeholders/products/womens-on-shift-contourknit-outerwear--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-fleece-outerwear--black",
+      "title": "Women's On Shift Fleece Outerwear",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-fleece-outerwear--black.jpg",
+        "/placeholders/products/womens-on-shift-fleece-outerwear--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-float-bomber-jacket--navy",
+      "title": "Women's On Shift Float Bomber Jacket",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-float-bomber-jacket--navy.jpg",
+        "/placeholders/products/womens-on-shift-float-bomber-jacket--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-float-bomber-vest--black",
+      "title": "Women's On Shift Float Bomber Vest",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-float-bomber-vest--black.jpg",
+        "/placeholders/products/womens-on-shift-float-bomber-vest--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-float-shacket-outerwear--black",
+      "title": "Women's On Shift Float Shacket Outerwear",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-float-shacket-outerwear--black.jpg",
+        "/placeholders/products/womens-on-shift-float-shacket-outerwear--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-metallic-puffer-vest-outerwear--silver-frost",
+      "title": "Women's On Shift Metallic Puffer Vest Outerwear",
+      "color": "Silver Frost",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-metallic-puffer-vest-outerwear--silver-frost.jpg",
+        "/placeholders/products/womens-on-shift-metallic-puffer-vest-outerwear--silver-frost--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-outerwear--black",
+      "title": "Women's On Shift Outerwear",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-outerwear--black.jpg",
+        "/placeholders/products/womens-on-shift-outerwear--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-packable-puffer-jacket--black",
+      "title": "Women's On Shift Packable Puffer Jacket",
+      "color": "Black",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-packable-puffer-jacket--black.jpg",
+        "/placeholders/products/womens-on-shift-packable-puffer-jacket--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-sweater-knit-outerwear--heather-light-grey",
+      "title": "Women's On Shift Sweater Knit Outerwear",
+      "color": "Heather Light Grey",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-sweater-knit-outerwear--heather-light-grey.jpg",
+        "/placeholders/products/womens-on-shift-sweater-knit-outerwear--heather-light-grey--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-on-shift-sweater-knit-vests--heather-light-grey",
+      "title": "Women's On Shift Sweater Knit Vests",
+      "color": "Heather Light Grey",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-on-shift-sweater-knit-vests--heather-light-grey.jpg",
+        "/placeholders/products/womens-on-shift-sweater-knit-vests--heather-light-grey--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-rafaela-cargo-wide-leg-scrub-jumpsuit--navy",
+      "title": "Women's Rafaela Cargo Wide Leg Scrub Jumpsuit",
+      "color": "Navy",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-rafaela-cargo-wide-leg-scrub-jumpsuit--navy.jpg",
+        "/placeholders/products/womens-rafaela-cargo-wide-leg-scrub-jumpsuit--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-rafaela-jogger-scrubjumpsuit--burgundy",
+      "title": "Women's Rafaela Jogger Scrubjumpsuit",
+      "color": "Burgundy",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-rafaela-jogger-scrubjumpsuit--burgundy.jpg",
+        "/placeholders/products/womens-rafaela-jogger-scrubjumpsuit--burgundy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-rafaela-maternity-scrub-top--black",
+      "title": "Women's Rafaela Maternity Scrub Top",
+      "color": "Black",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-rafaela-maternity-scrub-top--black.jpg",
+        "/placeholders/products/womens-rafaela-maternity-scrub-top--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-rafaela-maternity-scrub-top--charcoal",
+      "title": "Women's Rafaela Maternity Scrub Top",
+      "color": "Charcoal",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-rafaela-maternity-scrub-top--charcoal.jpg",
+        "/placeholders/products/womens-rafaela-maternity-scrub-top--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-rafaela-scrub-top--charcoal",
+      "title": "Women's Rafaela Scrub Top",
+      "color": "Charcoal",
+      "category": "tops",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-rafaela-scrub-top--charcoal.jpg",
+        "/placeholders/products/womens-rafaela-scrub-top--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-rafaela-scrub-top--dark-harbor",
+      "title": "Women's Rafaela Scrub Top",
+      "color": "Dark Harbor",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-rafaela-scrub-top--dark-harbor.jpg",
+        "/placeholders/products/womens-rafaela-scrub-top--dark-harbor--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-ribbed-cropped-longsleeve-underscrub--charcoal",
+      "title": "Women's Ribbed Cropped Longsleeve Underscrub",
+      "color": "Charcoal",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-ribbed-cropped-longsleeve-underscrub--charcoal.jpg",
+        "/placeholders/products/womens-ribbed-cropped-longsleeve-underscrub--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-ribbed-longsleeve-underscrub--navy",
+      "title": "Women's Ribbed Longsleeve Underscrub",
+      "color": "Navy",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-ribbed-longsleeve-underscrub--navy.jpg",
+        "/placeholders/products/womens-ribbed-longsleeve-underscrub--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-ribbed-three-quarter-sleeve-underscrub--ceil-blue",
+      "title": "Women's Ribbed Three Quarter Sleeve Underscrub",
+      "color": "Ceil Blue",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-ribbed-three-quarter-sleeve-underscrub--ceil-blue.jpg",
+        "/placeholders/products/womens-ribbed-three-quarter-sleeve-underscrub--ceil-blue--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-roslyn-mid-rise-wide-leg-scrub-pants--black",
+      "title": "Women's Roslyn Mid Rise Wide Leg Scrub Pants",
+      "color": "Black",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-roslyn-mid-rise-wide-leg-scrub-pants--black.jpg",
+        "/placeholders/products/womens-roslyn-mid-rise-wide-leg-scrub-pants--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-roslyn-mid-rise-wide-leg-scrub-pants--dark-harbor",
+      "title": "Women's Roslyn Mid Rise Wide Leg Scrub Pants",
+      "color": "Dark Harbor",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-roslyn-mid-rise-wide-leg-scrub-pants--dark-harbor.jpg",
+        "/placeholders/products/womens-roslyn-mid-rise-wide-leg-scrub-pants--dark-harbor--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-salta-shimmer-longsleeve-underscrub--off-white",
+      "title": "Women's Salta Shimmer Longsleeve Underscrub",
+      "color": "Off White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-salta-shimmer-longsleeve-underscrub--off-white.jpg",
+        "/placeholders/products/womens-salta-shimmer-longsleeve-underscrub--off-white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-salta-shortsleeve-underscrub--navy",
+      "title": "Women's Salta Shortsleeve Underscrub",
+      "color": "Navy",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-salta-shortsleeve-underscrub--navy.jpg",
+        "/placeholders/products/womens-salta-shortsleeve-underscrub--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-salta-three-quarters-underscrub--black",
+      "title": "Women's Salta Three Quarters Underscrub",
+      "color": "Black",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-salta-three-quarters-underscrub--black.jpg",
+        "/placeholders/products/womens-salta-three-quarters-underscrub--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-salta-under-scrubs--graphite",
+      "title": "Women's Salta Under Scrubs",
+      "color": "Graphite",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-salta-under-scrubs--graphite.jpg",
+        "/placeholders/products/womens-salta-under-scrubs--graphite--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-shelby-scrub-pants--navy",
+      "title": "Women's Shelby Scrub Pants",
+      "color": "Navy",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-shelby-scrub-pants--navy.jpg",
+        "/placeholders/products/womens-shelby-scrub-pants--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-shelby-scrub-pants--sagewater",
+      "title": "Women's Shelby Scrub Pants",
+      "color": "Sagewater",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-shelby-scrub-pants--sagewater.jpg",
+        "/placeholders/products/womens-shelby-scrub-pants--sagewater--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-star-wars-salta-underscrubs--ombre-smokey-taupe",
+      "title": "Women's Star Wars Salta Underscrubs",
+      "color": "Ombre Smokey Taupe",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-star-wars-salta-underscrubs--ombre-smokey-taupe.jpg",
+        "/placeholders/products/womens-star-wars-salta-underscrubs--ombre-smokey-taupe--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-super-soft-longsleeve-under-scrubs--black",
+      "title": "Women's Super Soft Longsleeve Under Scrubs",
+      "color": "Black",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-super-soft-longsleeve-under-scrubs--black.jpg",
+        "/placeholders/products/womens-super-soft-longsleeve-under-scrubs--black--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-super-soft-shortsleeve-crewneck-under-scrubs--white",
+      "title": "Women's Super Soft Shortsleeve Crewneck Under Scrubs",
+      "color": "White",
+      "category": "underscrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-super-soft-shortsleeve-crewneck-under-scrubs--white.jpg",
+        "/placeholders/products/womens-super-soft-shortsleeve-crewneck-under-scrubs--white--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-sydney-scrub-jacket--navy",
+      "title": "Women's Sydney Scrub Jacket",
+      "color": "Navy",
+      "category": "scrubs",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-sydney-scrub-jacket--navy.jpg",
+        "/placeholders/products/womens-sydney-scrub-jacket--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-sydney-scrub-jacket--sagewater",
+      "title": "Women's Sydney Scrub Jacket",
+      "color": "Sagewater",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-sydney-scrub-jacket--sagewater.jpg",
+        "/placeholders/products/womens-sydney-scrub-jacket--sagewater--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-sydney-vest--navy",
+      "title": "Women's Sydney Vest",
+      "color": "Navy",
+      "category": "outerwear",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-sydney-vest--navy.jpg",
+        "/placeholders/products/womens-sydney-vest--navy--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-uman-jogger-scrub-pants--charcoal",
+      "title": "Women's Uman Jogger Scrub Pants",
+      "color": "Charcoal",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-uman-jogger-scrub-pants--charcoal.jpg",
+        "/placeholders/products/womens-uman-jogger-scrub-pants--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-yola-high-waisted-yoga-waistband-scrub-pants--dark-harbor",
+      "title": "Women's Yola High Waisted Yoga Waistband Scrub Pants",
+      "color": "Dark Harbor",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-yola-high-waisted-yoga-waistband-scrub-pants--dark-harbor.jpg",
+        "/placeholders/products/womens-yola-high-waisted-yoga-waistband-scrub-pants--dark-harbor--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-zamora-high-waisted-yoga-waistband-scrub-pants--charcoal",
+      "title": "Women's Zamora High Waisted Yoga Waistband Scrub Pants",
+      "color": "Charcoal",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-zamora-high-waisted-yoga-waistband-scrub-pants--charcoal.jpg",
+        "/placeholders/products/womens-zamora-high-waisted-yoga-waistband-scrub-pants--charcoal--alt.jpg"
+      ]
+    },
+    {
+      "id": "womens-zamora-scrub-pants--black",
+      "title": "Women's Zamora Scrub Pants",
+      "color": "Black",
+      "category": "pants",
+      "gender": "womens",
+      "files": [
+        "/placeholders/products/womens-zamora-scrub-pants--black.jpg",
+        "/placeholders/products/womens-zamora-scrub-pants--black--alt.jpg"
+      ]
+    }
+  ]
+}

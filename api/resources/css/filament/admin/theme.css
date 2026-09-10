@@ -1,0 +1,849 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*.php';
+@source '../../../../app/Providers/Filament/**/*.php';
+@source '../../../../resources/views/filament/**/*.blade.php';
+
+/* ============================================================================
+   BulkScrubsDirect admin — design system
+
+   A port of the Uniglobal admin system (C:\uniglobal\admin\design.md) onto this
+   brand. What carried over is the *system*, not the palette:
+
+     - warm canvas, white cards; a card reads as raised because it is LIGHTER
+       than the page, never because of a shadow
+     - flat by construction — every shadow token is none, separation is a
+       hairline border
+     - fixed always-expanded sidebar with a solid pill for the active item,
+       uppercase group labels, and a topbar carrying the page title
+     - one list-page vocabulary: stat tiles, tinted table header band,
+       scannable rows, semantic status chips
+
+   What did NOT carry over is Uniglobal's orange. Their own doc is explicit that
+   the accent was chosen because it is *their* storefront's brand colour and
+   that the blue it replaced "has no connection to this business" — applying
+   that reasoning here means using ours. The palette below is lifted from the
+   storefront's tokens (web/app/assets/css/main.css) so the admin and the shop
+   are visibly the same product: warm neutrals, near-black ink, sage reserved
+   for wholesale.
+
+   Swapping the accent is a one-line change: --bsd-accent, plus the primary
+   ramp in AdminPanelProvider.
+   ============================================================================ */
+
+@theme {
+    --font-sans: 'Inter', -apple-system, 'SF Pro Display', system-ui, sans-serif;
+
+    /* Filament paints the whole UI from the gray ramp, so replacing it warm is
+       what turns a cool grey admin into this one — far more effective than
+       chasing individual components. Values are the storefront's surface and
+       ink tokens, interpolated into the 50-950 steps Tailwind expects. */
+    --color-gray-50: #fbf8f4;
+    --color-gray-100: #f6f1ea;
+    --color-gray-200: #ede7df;
+    --color-gray-300: #ddd5cb;
+    --color-gray-400: #9a938c;
+    --color-gray-500: #6b6560;
+    --color-gray-600: #57524d;
+    --color-gray-700: #3d3a37;
+    --color-gray-800: #2b2927;
+    --color-gray-900: #1f1e1c;
+    --color-gray-950: #1a1a1a;
+
+    /* Radii. Uniglobal: 16px cards, 12px tables, 9px buttons, 10px nav items. */
+    --radius-lg: 0.625rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.25rem;
+}
+
+:root {
+    /* One accent, named once. The sidebar pill, focus rings and primary
+       buttons all read from the primary ramp the panel declares; this token is
+       for the handful of places below that need the literal. */
+    --bsd-accent: #1a1a1a;
+
+    --bsd-canvas: #fbf8f4;
+    --bsd-surface: #ffffff;
+    --bsd-surface-2: #faf5ef;
+    --bsd-surface-3: #f3ebe1;
+    --bsd-border: #ede7df;
+    --bsd-text: #1a1a1a;
+    --bsd-text-2: #3d3a37;
+    --bsd-muted: #6b6560;
+    --bsd-subtle: #9a938c;
+
+    /* Sage stays what it is on the storefront: the wholesale signal, and
+       nothing else. It is not a general-purpose accent here either. */
+    --bsd-sage: #4a6b5d;
+    --bsd-sage-soft: #edf2ef;
+
+    --bsd-sidebar-width: 236px;
+    --bsd-topbar-height: 68px;
+}
+
+.dark {
+    /* Warm dark, not blue-black — the same move Uniglobal made so the accent
+       sits naturally on it. Ink-on-warm rather than ink-on-slate. */
+    --bsd-canvas: #171614;
+    --bsd-surface: #201e1c;
+    --bsd-surface-2: #292623;
+    --bsd-surface-3: #35312d;
+    --bsd-border: #322e2a;
+    --bsd-text: #ffffff;
+    --bsd-text-2: #d8d2ca;
+    --bsd-muted: #a39c94;
+    --bsd-subtle: #6b645d;
+
+    --bsd-accent: #ffffff;
+    --bsd-sage: #7fa593;
+    --bsd-sage-soft: rgba(127, 165, 147, 0.14);
+}
+
+/* ----------------------------------------------------------------------------
+   Flat by default
+
+   Filament separates surfaces with `shadow-sm` + `ring-1`, and Tailwind draws
+   that ring as a box-shadow — so switching shadows off takes the hairline with
+   it and every panel loses its edge. The border has to be put back explicitly,
+   which is the whole point of the system being ported: separation comes from a
+   1px line, never from a drop shadow.
+
+   Done here rather than per component so a Filament component nobody has
+   styled yet still lands flat and bordered.
+   ---------------------------------------------------------------------------- */
+/* `fi-section-not-contained` is Filament's own marker for a section that is a
+   bare layout wrapper, not a card — it is what the stats widget puts around its
+   tiles. Bordering it drew a second box around the row of stat cards. Filament
+   guards its own card styling the same way; this matches it. */
+.fi-section:not(.fi-aside):not(.fi-section-not-contained),
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat,
+.fi-modal-window,
+.fi-dropdown-panel,
+.fi-topbar,
+.fi-simple-main {
+    box-shadow: none !important;
+    border: 1px solid var(--bsd-border);
+}
+
+/* ----------------------------------------------------------------------------
+   Canvas and cards
+   ---------------------------------------------------------------------------- */
+.fi-body {
+    background-color: var(--bsd-canvas);
+    color: var(--bsd-text);
+}
+
+.fi-section:not(.fi-aside),
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat {
+    background-color: var(--bsd-surface);
+    border-radius: 1rem;
+}
+
+/* ----------------------------------------------------------------------------
+   Sidebar — fixed, always expanded, solid pill for the active item
+
+   Uniglobal accepted a known contrast regression here: white on their #FF6500
+   is ~2.95:1. Ink gives the same solid-pill shape at ~15.9:1, so the shape is
+   ported without the tradeoff that came with it.
+   ---------------------------------------------------------------------------- */
+.fi-body {
+    --sidebar-width: var(--bsd-sidebar-width);
+    --topbar-height: var(--bsd-topbar-height);
+}
+
+.fi-sidebar {
+    background-color: var(--bsd-surface) !important;
+    border-inline-end: 1px solid var(--bsd-border);
+}
+
+.fi-sidebar-nav {
+    padding: 1.25rem 1rem;
+    gap: 1.5rem;
+}
+
+/* Uppercase eyebrow, per the reference's .nav-section-label. Filament ships
+   these as 14px sentence-case, which reads as another nav item. */
+.fi-sidebar-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--bsd-subtle);
+}
+
+.fi-sidebar-item-btn {
+    border-radius: 10px;
+    padding: 0.5rem 0.625rem;
+    justify-content: flex-start;
+}
+
+.fi-sidebar-item-label {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--bsd-text-2);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: var(--bsd-accent) !important;
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: var(--bsd-surface) !important;
+}
+
+.dark .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.dark .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: #1a1a1a !important;
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover {
+    background-color: var(--bsd-surface-2);
+}
+
+/* The brand lockup is the one place the storefront's display face appears —
+   it is the wordmark, not UI type. Loaded in AdminPanelProvider's head hook. */
+.fi-logo {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    color: var(--bsd-text);
+}
+
+/* ----------------------------------------------------------------------------
+   Topbar — 68px, carrying the page context
+   ---------------------------------------------------------------------------- */
+.fi-topbar {
+    background-color: var(--bsd-surface);
+    /* Only the bottom edge — a full border would draw a line down the side of
+       the screen where the topbar meets nothing. */
+    border: 0;
+    border-bottom: 1px solid var(--bsd-border);
+    min-height: var(--bsd-topbar-height);
+}
+
+/* ----------------------------------------------------------------------------
+   Page header
+   ---------------------------------------------------------------------------- */
+.fi-header-heading {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: var(--bsd-text);
+}
+
+.fi-header-subheading {
+    font-size: 13px;
+    color: var(--bsd-muted);
+}
+
+.fi-page-header-main-ctn {
+    padding-block: 1.75rem;
+    gap: 1.5rem;
+}
+
+/* ----------------------------------------------------------------------------
+   Tables — the list-page pattern
+
+   Reference: tinted header band, muted 11px uppercase labels, scan-friendly
+   rows, hairline separators, hover on --surface-2.
+   ---------------------------------------------------------------------------- */
+.fi-ta-ctn {
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.fi-ta-header-cell {
+    background-color: var(--bsd-surface-2);
+    border-bottom: 1px solid var(--bsd-border);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--bsd-muted);
+    padding-block: 0.75rem;
+}
+
+.fi-ta-header-cell .fi-ta-header-cell-sort-btn {
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+}
+
+.fi-ta-row {
+    border-bottom: 1px solid var(--bsd-border);
+    transition: background-color 0.14s ease;
+}
+
+.fi-ta-row:last-child {
+    border-bottom: 0;
+}
+
+.fi-ta-row:hover {
+    background-color: var(--bsd-surface-2) !important;
+}
+
+.fi-ta-text-item-label {
+    font-size: 13px;
+}
+
+/* One toolbar band above the rows, not two.
+
+   Filament stacks the heading/actions band on top of the search-and-filters
+   band, which came to 119px of chrome sitting between a page heading, a stat
+   row and the first record — on the dashboard widget it read as an empty gap
+   under the card title. The reference gives a list one bar: title or actions on
+   the left, controls pushed to the right, wrapping rather than stacking when
+   there is no room. */
+.fi-ta-header-ctn {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.5rem;
+    background-color: var(--bsd-surface);
+    border-bottom: 1px solid var(--bsd-border);
+}
+
+.fi-ta-header-ctn > .fi-ta-header {
+    flex: 0 1 auto;
+    padding: 0;
+    border: 0;
+}
+
+.fi-ta-header-ctn > .fi-ta-header-toolbar {
+    padding: 0;
+    margin-inline-start: auto;
+}
+
+/* Row density. Filament's cells are tuned for a dense grid; the reference's
+   rows are tall enough that a two-line identifying cell (name over SKU) does
+   not crowd the rows above and below it, which is what makes a list scannable
+   rather than merely compact. */
+.fi-ta-cell {
+    padding-block: 0.5rem;
+}
+
+.fi-ta-cell .fi-ta-col-wrp {
+    padding-block: 0.375rem;
+}
+
+/* Money and counts line up digit over digit down the column — the one thing a
+   list of totals is actually read for. */
+.fi-ta-text-item-label {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Thumbnails in the identifying cell, per ProductsTable. Square with the same
+   hairline as every other surface edge, so a photo with a white background
+   still reads as a tile rather than as a hole in the row. */
+.bsd-thumb {
+    border-radius: 8px;
+    object-fit: cover;
+    background-color: var(--bsd-surface-2);
+    box-shadow: inset 0 0 0 1px var(--bsd-border);
+}
+
+/* ----------------------------------------------------------------------------
+   Stat tiles
+
+   Uniglobal's .list-stat-card: a flat bordered tile, muted 12px label, 22px
+   value. Filament's StatsOverviewWidget renders the same three parts, so this
+   is a restyle rather than a new component — which is why every list page can
+   pick up the pattern by declaring a widget.
+   ---------------------------------------------------------------------------- */
+.fi-wi-stats-overview-stat {
+    border-radius: 1rem;
+    padding: 1.125rem 1.25rem;
+}
+
+.fi-wi-stats-overview-stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--bsd-muted);
+}
+
+.fi-wi-stats-overview-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--bsd-text);
+}
+
+.fi-wi-stats-overview-stat-description {
+    font-size: 11.5px;
+    color: var(--bsd-muted);
+}
+
+/* ----------------------------------------------------------------------------
+   Buttons — compact rectangles, not pills (reference: 9px radius, 14px/600)
+   ---------------------------------------------------------------------------- */
+.fi-btn {
+    border-radius: 9px;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    box-shadow: none;
+}
+
+.fi-icon-btn {
+    border-radius: 8px;
+}
+
+/* ----------------------------------------------------------------------------
+   Badges — compact semantic chips on tinted grounds
+   ---------------------------------------------------------------------------- */
+.fi-badge {
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   Inputs and modals
+   ---------------------------------------------------------------------------- */
+.fi-input-wrp {
+    border-radius: 10px;
+}
+
+.fi-modal-window {
+    border-radius: 1rem;
+    border: 1px solid var(--bsd-border);
+}
+
+/* Sage is the wholesale signal, carried over from the storefront so a price
+   that is a wholesale price looks like one in both places. Applied through
+   Filament's `info` slot, which the pricing resources use. */
+.fi-color-info.fi-badge {
+    background-color: var(--bsd-sage-soft);
+    color: var(--bsd-sage);
+}
+
+/* ----------------------------------------------------------------------------
+   Infolists — the record-detail pattern
+
+   Reference: a five-fact strip, cards that hold a bled table, a receipt block
+   and a narrow rail. Filament renders all four out of the same entry markup, so
+   the work here is re-weighting that markup rather than adding components.
+   ---------------------------------------------------------------------------- */
+
+/* Muted label over ink value — the weighting the stat tiles already use, and
+   the inverse of what Filament ships. Its default is a 14px near-black label
+   above a lighter value, which on a five-across detail strip reads as five
+   headings and no data: the eye lands on the words, not the order number.
+   Inline-label entries are excluded because their label is a receipt caption
+   sitting beside the figure, not a caption above it. */
+.fi-in-entry:not(.fi-in-entry-has-inline-label) > .fi-in-entry-label-ctn .fi-in-entry-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    color: var(--bsd-subtle);
+}
+
+.fi-in-entry:not(.fi-in-entry-has-inline-label) .fi-in-text {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--bsd-text);
+}
+
+/* ---- Bled tables ----------------------------------------------------------
+   Sections carrying nothing but a repeatable table drop their 24px padding so
+   the header band can run edge to edge, the way the reference's Product
+   Information card does. The cells put the inset back. Clipping is what keeps
+   the last row inside the card's 1rem corner. */
+/* The hook class lands on the schema-component wrapper, one level outside the
+   card, so both selectors reach in for `.fi-section` rather than assuming they
+   are it. The padding rule carries a `:not()` it does not otherwise need:
+   Filament's own is a five-class selector, and matching that weight is what
+   lets source order settle it instead of an `!important`. */
+.bsd-table-section .fi-section {
+    overflow: hidden;
+}
+
+.bsd-table-section .fi-section:not(.fi-divided) > .fi-section-content-ctn > .fi-section-content {
+    padding: 0;
+}
+
+.fi-in-table-repeatable table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Same band as the list pages — one table vocabulary across the panel, so a
+   table inside a record reads as the same object as the table that led to it. */
+.fi-in-table-repeatable thead th {
+    background-color: var(--bsd-surface-2);
+    border-block: 1px solid var(--bsd-border);
+    padding: 0.625rem 1.5rem;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--bsd-muted);
+    text-align: start;
+}
+
+.fi-in-table-repeatable thead th.fi-align-center {
+    text-align: center;
+}
+
+.fi-in-table-repeatable thead th.fi-align-end {
+    text-align: end;
+}
+
+.fi-in-table-repeatable tbody td {
+    padding: 0.875rem 1.5rem;
+    border-bottom: 1px solid var(--bsd-border);
+    vertical-align: middle;
+}
+
+.fi-in-table-repeatable tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+/* Entries inside a table cell have no label to sit under, so the grid gap the
+   wrapper carries is dead height on every row. */
+.fi-in-table-repeatable .fi-in-entry {
+    gap: 0;
+}
+
+/* ---- Colour swatch --------------------------------------------------------
+   The dot beside a colour name, painted from the live variant. See
+   OrderInfolist::swatch() for why the hex is not read from the order snapshot
+   and why it is pattern-checked before it gets here. */
+.bsd-swatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bsd-swatch > i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    /* Ring rather than border: white and near-white swatches vanish on the
+       white card otherwise, and the ring is the same hairline used everywhere
+       else to separate two light surfaces. */
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+    flex: none;
+}
+
+/* ---- Receipt --------------------------------------------------------------
+   Figures right, captions left, one ruled line before the total. */
+.bsd-receipt .fi-in-entry-content {
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+}
+
+.bsd-receipt .fi-in-entry-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--bsd-muted);
+}
+
+.bsd-receipt .bsd-total-row {
+    border-top: 1px solid var(--bsd-border);
+    padding-top: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.bsd-receipt .bsd-total-row .fi-in-entry-label,
+.bsd-receipt .bsd-total-row .fi-in-text {
+    font-size: 15px;
+    color: var(--bsd-text);
+}
+
+/* ---- Customer rail --------------------------------------------------------
+   Filament renders an entry icon inline with the value rather than as the
+   leading chip the reference draws beside the whole pair — the icon lives
+   inside the content container, so no amount of CSS lifts it out to span both
+   rows. Muting it and letting it lead the value keeps the scanning order
+   (icon, then fact) without pretending the markup is something it is not. */
+.bsd-rail .fi-in-entry-content-ctn > .fi-icon {
+    color: var(--bsd-subtle);
+    flex: none;
+}
+
+.bsd-rail .fi-in-entry {
+    gap: 0.25rem;
+}
+
+/* ----------------------------------------------------------------------------
+   Order details page — dashboard reference treatment
+   ---------------------------------------------------------------------------- */
+.bsd-order-view-body {
+    background:
+        radial-gradient(circle at top left, rgba(242, 176, 149, 0.92), transparent 34%),
+        radial-gradient(circle at top right, rgba(160, 118, 255, 0.82), transparent 30%),
+        linear-gradient(135deg, #d2a5d8 0%, #e6a88d 40%, #7068ff 100%);
+    min-height: 100vh;
+}
+
+.bsd-order-view-body .fi-topbar {
+    margin: 2rem 2rem 0;
+    border: 1px solid rgba(255, 255, 255, 0.52);
+    border-bottom: 0;
+    border-radius: 1.5rem 1.5rem 0 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(18px);
+}
+
+.bsd-order-view-body .fi-layout {
+    margin: 0 2rem 2rem;
+    min-height: calc(100vh - 7.25rem);
+    overflow: hidden;
+    border-radius: 0 0 1.5rem 1.5rem;
+    background: #eef2f8;
+    box-shadow: 0 30px 70px rgba(51, 34, 110, 0.2);
+}
+
+.bsd-order-view-body .fi-main-ctn,
+.bsd-order-view-body .fi-main {
+    background: transparent;
+    max-width: none;
+}
+
+.bsd-order-view-body .fi-sidebar {
+    background-color: #ffffff !important;
+    border-inline-end: 1px solid #e7ebf3;
+}
+
+.bsd-order-view-body .fi-sidebar-nav {
+    padding: 1.5rem 1rem;
+}
+
+.bsd-order-view-body .fi-page-header-main-ctn {
+    padding: 1.5rem;
+    gap: 1.25rem;
+}
+
+.bsd-order-view-body .fi-page-content {
+    padding: 0 1.5rem 2rem;
+}
+
+.bsd-order-view-body .fi-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.bsd-order-view-body .fi-breadcrumbs {
+    margin-bottom: 0.6rem;
+}
+
+.bsd-order-view-body .fi-breadcrumbs-list {
+    gap: 0.5rem;
+}
+
+.bsd-order-view-body .fi-breadcrumbs-item-label,
+.bsd-order-view-body .fi-breadcrumbs-item-separator {
+    font-size: 12px;
+    color: #8b95a7;
+}
+
+.bsd-order-view-body .fi-header-heading {
+    font-size: 2rem;
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    color: #151b2c;
+}
+
+.bsd-order-view-body .fi-header-actions-ctn {
+    margin-inline-start: auto;
+}
+
+.bsd-order-view-body .fi-ac {
+    gap: 0.75rem;
+}
+
+.bsd-order-view-body .fi-btn {
+    min-height: 2.625rem;
+    padding-inline: 1rem;
+    border-radius: 0.8rem;
+}
+
+.bsd-order-view-body .fi-section:not(.fi-aside),
+.bsd-order-view-body .fi-ta-ctn,
+.bsd-order-view-body .fi-wi-stats-overview-stat,
+.bsd-order-view-body .fi-modal-window,
+.bsd-order-view-body .fi-dropdown-panel,
+.bsd-order-view-body .fi-simple-main {
+    border-color: #e3e8f3;
+    border-radius: 1.25rem;
+    background: #ffffff;
+}
+
+.bsd-order-view-body .fi-section-header {
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #eef2f8;
+}
+
+.bsd-order-view-body .fi-section-header-heading {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #151b2c;
+}
+
+.bsd-order-view-body .fi-section-header-description {
+    font-size: 13px;
+    color: #7a8497;
+}
+
+.bsd-order-view-body .fi-section-content {
+    padding: 1.25rem;
+}
+
+.bsd-order-overview .fi-section-header {
+    align-items: center;
+}
+
+.bsd-order-overview .fi-section-header-after-ctn {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-inline-start: auto;
+}
+
+.bsd-order-overview .fi-section-content {
+    padding-block: 1.1rem;
+}
+
+.bsd-order-overview .fi-in {
+    gap: 0;
+}
+
+.bsd-order-overview .fi-in-entry {
+    position: relative;
+    gap: 0.35rem;
+    padding-inline-end: 1rem;
+}
+
+.bsd-order-overview .fi-grid > .fi-in-entry:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    inset-block: 0.1rem;
+    inset-inline-end: 0;
+    width: 1px;
+    background: #eef2f8;
+}
+
+.bsd-order-view-body .fi-in-entry-label {
+    color: #8791a4;
+}
+
+.bsd-order-view-body .fi-in-text {
+    color: #1d2436;
+}
+
+.bsd-product-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.875rem;
+    min-width: 0;
+}
+
+.bsd-product-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.22rem;
+}
+
+.bsd-product-name {
+    font-weight: 700;
+    color: #151b2c;
+}
+
+.bsd-product-meta {
+    font-size: 12px;
+    color: #7a8497;
+}
+
+.bsd-product-thumb {
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid #e6ebf4;
+    border-radius: 0.8rem;
+    background: linear-gradient(180deg, #f8faff 0%, #f0f3fa 100%);
+    object-fit: cover;
+    flex: none;
+}
+
+.bsd-product-thumb-empty {
+    display: inline-block;
+    position: relative;
+}
+
+.bsd-product-thumb-empty::after {
+    content: '';
+    position: absolute;
+    inset: 0.8rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #d1d8e8 0%, #e8edf7 100%);
+}
+
+.bsd-note-section .fi-in-text {
+    color: #566176;
+    line-height: 1.75;
+}
+
+.bsd-rail .fi-section-content {
+    display: grid;
+    gap: 0.875rem;
+}
+
+.bsd-rail .fi-in-entry {
+    border: 1px solid #e8ecf4;
+    border-radius: 0.9rem;
+    background: #f9fbff;
+    padding: 0.9rem 0.95rem;
+}
+
+.bsd-rail .fi-in-entry-label {
+    margin-bottom: 0.18rem;
+}
+
+.bsd-rail .fi-in-entry-content-ctn {
+    align-items: flex-start;
+    gap: 0.7rem;
+}
+
+.bsd-receipt .fi-section-header-after-ctn .fi-badge {
+    border-radius: 999px;
+}
+
+.bsd-receipt .fi-in-entry {
+    padding-block: 0.2rem;
+}
+
+.bsd-receipt .bsd-total-row {
+    padding-top: 0.95rem;
+}
+
+@media (max-width: 1024px) {
+    .bsd-order-view-body .fi-topbar {
+        margin: 1rem 1rem 0;
+        border-radius: 1.25rem 1.25rem 0 0;
+    }
+
+    .bsd-order-view-body .fi-layout {
+        margin: 0 1rem 1rem;
+        min-height: calc(100vh - 4.75rem);
+        border-radius: 0 0 1.25rem 1.25rem;
+    }
+
+    .bsd-order-overview .fi-grid > .fi-in-entry::after {
+        display: none;
+    }
+}
