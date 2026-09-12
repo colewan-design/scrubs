@@ -74,7 +74,12 @@ class CartController extends Controller
     protected function respond(Request $request, Cart $cart): JsonResponse
     {
         $quote = $this->carts->quote($cart, $request->user());
-        $cart->loadMissing(['items.variant.product.images', 'items.variant.color', 'items.variant.size']);
+        $cart->loadMissing([
+            'items.variant.product.images',
+            'items.variant.color',
+            'items.variant.size',
+            'items.variant.secondarySize',
+        ]);
 
         $quoteByVariant = $quote->lines->keyBy(fn ($line) => $line->variant->id);
 
@@ -88,6 +93,13 @@ class CartController extends Controller
                 'product_slug' => $variant->product->slug,
                 'sku' => $variant->sku,
                 'variant_label' => $variant->displayName(),
+                // The same facts the label is assembled from, unassembled: the
+                // cart lists them as "Colour: Navy" / "Size: M" on their own
+                // rows, and splitting displayName() back apart in the frontend
+                // would guess at which part was which.
+                'color' => $variant->color?->name,
+                'size' => $variant->size?->name,
+                'secondary_size' => $variant->secondarySize?->name,
                 'image' => $variant->product->primaryImage()?->path,
                 'qty' => $item->qty,
                 'available' => $variant->availableStock(),

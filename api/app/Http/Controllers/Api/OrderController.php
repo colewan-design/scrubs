@@ -24,7 +24,10 @@ class OrderController extends Controller
     {
         $orders = Order::query()
             ->where('user_id', $request->user()->id)
-            ->with(['items'])
+            // The list draws each order's first few products and offers to
+            // reorder it, so the lines carry their live product; shipments are
+            // what put a tracking number next to a shipped order.
+            ->with(['items.variant.product.images', 'shipments'])
             ->latest('placed_at')
             ->paginate(20);
 
@@ -50,7 +53,7 @@ class OrderController extends Controller
 
         return response()->json([
             'order' => OrderResource::make($order->load([
-                'items', 'taxes', 'addresses', 'shipments', 'statusHistory',
+                'items.variant.product.images', 'taxes', 'addresses', 'shipments', 'statusHistory',
             ]))->toArray($request),
         ]);
     }
@@ -68,7 +71,7 @@ class OrderController extends Controller
 
         return response()->json([
             'order' => OrderResource::make($order->load([
-                'items', 'taxes', 'addresses', 'statusHistory',
+                'items.variant.product.images', 'taxes', 'addresses', 'statusHistory',
             ]))->toArray($request),
         ]);
     }

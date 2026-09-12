@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { normalizeClass } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 
 /**
  * §1: black is for text, icons, borders and *small* buttons — never large dark
@@ -11,7 +12,9 @@ const props = withDefaults(defineProps<{
   block?: boolean
   disabled?: boolean
   loading?: boolean
-  to?: string
+  /** Accepts a location object too — callers that carry a `redirect` query
+   *  build one rather than hand-assembling a query string. */
+  to?: RouteLocationRaw
   type?: 'button' | 'submit'
 }>(), {
   variant: 'primary',

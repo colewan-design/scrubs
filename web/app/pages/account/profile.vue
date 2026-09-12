@@ -92,10 +92,7 @@ useSeoMeta({ title: 'Your profile', robots: 'noindex' })
 </script>
 
 <template>
-  <div class="container-content pt-10 pb-20">
-    <h1 class="font-display text-[32px] text-ink-900">Your profile</h1>
-
-    <AccountNav class="mt-6" />
+  <AccountShell title="Your profile">
 
     <div class="mt-8 max-w-[560px] space-y-10">
       <!-- Contact details -->
@@ -242,5 +239,5 @@ useSeoMeta({ title: 'Your profile', robots: 'noindex' })
         </form>
       </section>
     </div>
-  </div>
+  </AccountShell>
 </template>

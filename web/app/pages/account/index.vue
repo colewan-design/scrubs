@@ -59,10 +59,7 @@ useSeoMeta({ title: 'Your account', robots: 'noindex' })
 </script>
 
 <template>
-  <div class="container-content pt-10 pb-20">
-    <h1 class="font-display text-[32px] text-ink-900">Your account</h1>
-
-    <AccountNav class="mt-6" />
+  <AccountShell title="Your account">
 
     <p
       v-if="verifyNotice"
@@ -194,14 +191,5 @@ useSeoMeta({ title: 'Your account', robots: 'noindex' })
         </address>
       </section>
     </div>
-
-    <UiBaseButton
-      variant="tertiary"
-      size="sm"
-      class="mt-8"
-      @click="auth.logout().then(() => navigateTo('/'))"
-    >
-      Sign out
-    </UiBaseButton>
-  </div>
+  </AccountShell>
 </template>

@@ -123,6 +123,10 @@ export interface CartItem {
   product_slug: string
   sku: string
   variant_label: string
+  /** The parts of variant_label, so the cart can label each one. */
+  color: string | null
+  size: string | null
+  secondary_size: string | null
   image: string | null
   qty: number
   available: number
@@ -197,6 +201,10 @@ export interface OrderAddress extends AddressInput {
 export interface OrderItemLine {
   product_name: string
   variant_sku: string
+  /** The live product behind the frozen line. All null once it is deleted. */
+  variant_id: number | null
+  product_slug: string | null
+  image: string | null
   variant_label: string
   qty: number
   unit_retail: Money
@@ -242,6 +250,8 @@ export interface Order {
   placed_at: string | null
   paid_at: string | null
   shipped_at: string | null
+  completed_at: string | null
+  cancelled_at: string | null
 }
 
 export interface AuthUser {

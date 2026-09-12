@@ -84,10 +84,7 @@ useSeoMeta({ title: 'Your addresses', robots: 'noindex' })
 </script>
 
 <template>
-  <div class="container-content pt-10 pb-20">
-    <h1 class="font-display text-[32px] text-ink-900">Your addresses</h1>
-
-    <AccountNav class="mt-6" />
+  <AccountShell title="Your addresses">
 
     <p class="mt-6 max-w-[58ch] text-[15px] text-ink-500">
       Saved addresses fill in checkout for you. Your default shipping address is the one we suggest
@@ -171,5 +168,5 @@ useSeoMeta({ title: 'Your addresses', robots: 'noindex' })
         </div>
       </li>
     </ul>
-  </div>
+  </AccountShell>
 </template>

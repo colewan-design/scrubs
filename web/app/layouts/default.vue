@@ -10,6 +10,15 @@ await useAsyncData('session', async () => {
   await Promise.all([auth.ensureSession(), cart.refresh()])
   return true
 })
+
+// Nothing between a shopper and paying us: the sign-up band has no business
+// interrupting checkout or an account screen. The cart is the exception the
+// redesign makes — it closes with the band, under the recommendation strip,
+// where it reads as part of the page rather than an interruption.
+const route = useRoute()
+const showNewsletter = computed(
+  () => !/^\/(checkout|account|orders)(\/|$)/.test(route.path),
+)
 </script>
 
 <template>
@@ -20,7 +29,15 @@ await useAsyncData('session', async () => {
       <slot />
     </main>
 
-    <LayoutSiteFooter />
+    <!-- One gap between the page and everything that closes it, wherever the
+         band itself is suppressed (members, checkout, cart) — putting the
+         margin on the footer instead left a 5rem hole under the band on every
+         page that shows one. -->
+    <div class="mt-20">
+      <LayoutNewsletterBand v-if="showNewsletter" />
+      <LayoutSiteFooter />
+    </div>
+
     <LayoutStickyUnlockBar />
 
     <!-- Mounted once here; every lock on the page opens this same dialog. Never

@@ -42,6 +42,14 @@ class OrderResource extends JsonResource
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'product_name' => $item->product_name,
                 'variant_sku' => $item->variant_sku,
+                // Everything above this line is the frozen snapshot. These three
+                // are the live product, and every one of them is null once the
+                // variant is deleted — order history keeps working, and the
+                // order list simply drops the thumbnail and the reorder button
+                // for a line that can no longer be bought.
+                'variant_id' => $item->product_variant_id,
+                'product_slug' => $item->variant?->product?->slug,
+                'image' => $item->variant?->product?->primaryImage()?->path,
                 'variant_label' => $item->variantLabel(),
                 'qty' => $item->qty,
                 'unit_retail' => MoneyResource::make($item->unit_retail_cents),
@@ -93,6 +101,11 @@ class OrderResource extends JsonResource
             'placed_at' => $this->placed_at?->toIso8601String(),
             'paid_at' => $this->paid_at?->toIso8601String(),
             'shipped_at' => $this->shipped_at?->toIso8601String(),
+            // So a finished order can say when it finished. A refund has no
+            // timestamp of its own here — it is a payment fact recorded against
+            // the order, and the timeline is where its date lives.
+            'completed_at' => $this->completed_at?->toIso8601String(),
+            'cancelled_at' => $this->cancelled_at?->toIso8601String(),
         ];
     }
 

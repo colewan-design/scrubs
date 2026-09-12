@@ -29,6 +29,15 @@
   --color-sage-soft: #edf2ef;
   --color-clay: #8a5a44;
 
+  /* --- explainer tints: the section colours the wholesale mockup draws.
+     Backgrounds and icon accents on the "how it works" cards ONLY — never
+     type, never a control, never a status. They exist so a ladder of tiers
+     reads as a progression at a glance; sage stays the one accent that means
+     something on its own. --- */
+  --color-tint-blue: #eef3fb;
+  --color-tint-violet: #f2effb;
+  --color-violet: #5c4f8f;
+
   /* --- status --- */
   --color-status-success: #2f6b4f;
   --color-status-warning: #9a6b18;
@@ -38,6 +47,8 @@
   /* --- type --- */
   --font-display: "Fraunces", "Playfair Display", Georgia, serif;
   --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* One use only: the hero flourish. Never a UI control, never body copy. */
+  --font-script: "Caveat", "Segoe Script", cursive;
 
   /* --- radius: restrained. pill is the deliberate exception --- */
   --radius-sm: 4px;
