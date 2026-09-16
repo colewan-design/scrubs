@@ -3,13 +3,16 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Filament\Support\MoneyInput;
-use App\Models\Product;
+use App\Models\Color;
+use App\Models\Size;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -68,7 +71,101 @@ class ProductForm
 
                         Toggle::make('has_dual_sizing')
                             ->label('Sized top and bottom separately')
+                            ->live()
                             ->helperText('Adds a second size to every variant of this product.'),
+                    ]),
+
+                // Variants are defined here rather than in a separate panel: the
+                // catalogue is a plain colour x size matrix, so picking the two
+                // lists is the whole job. The Inventory panel below still owns
+                // stock, because those changes belong in the ledger.
+                Section::make('Variants')
+                    ->description('Pick the colours and sizes this product comes in. Every combination becomes a variant, with SKUs built from the Base SKU.')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('variant_color_ids')
+                            ->label('Colours')
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->options(fn (): array => Color::query()
+                                ->where('is_active', true)
+                                ->orderBy('position')
+                                ->pluck('name', 'id')
+                                ->all())
+                            // Typing a colour that does not exist yet creates it,
+                            // so an admin is never blocked by the Colours screen.
+                            ->createOptionForm([
+                                TextInput::make('name')->required()->maxLength(255),
+                                TextInput::make('hex')
+                                    ->label('Swatch colour')
+                                    ->required()
+                                    ->maxLength(7)
+                                    ->regex('/^#[0-9A-Fa-f]{6}$/')
+                                    ->helperText('Hex, e.g. #2C3A52. Shown as the swatch on the product page.'),
+                            ])
+                            ->createOptionUsing(fn (array $data): int => Color::create([
+                                'name' => $data['name'],
+                                'slug' => Str::slug($data['name']),
+                                'hex' => $data['hex'],
+                                'position' => (int) Color::max('position') + 1,
+                                'is_active' => true,
+                            ])->getKey()),
+
+                        Select::make('variant_size_ids')
+                            ->label(fn (Get $get): string => $get('has_dual_sizing') ? 'Top sizes' : 'Sizes')
+                            ->multiple()
+                            ->preload()
+                            ->live()
+                            ->options(fn (): array => Size::query()
+                                ->where('is_active', true)
+                                ->orderBy('position')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->createOptionForm([
+                                TextInput::make('name')->required()->maxLength(255),
+                            ])
+                            ->createOptionUsing(fn (array $data): int => Size::create([
+                                'name' => $data['name'],
+                                'slug' => Str::slug($data['name']),
+                                'position' => (int) Size::max('position') + 1,
+                                'is_active' => true,
+                            ])->getKey()),
+
+                        Select::make('variant_secondary_size_ids')
+                            ->label('Bottom sizes')
+                            ->multiple()
+                            ->preload()
+                            ->live()
+                            ->visible(fn (Get $get): bool => (bool) $get('has_dual_sizing'))
+                            ->options(fn (): array => Size::query()
+                                ->where('is_active', true)
+                                ->orderBy('position')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->helperText('Leave blank to pair every top size with the same bottom size.'),
+
+                        Placeholder::make('variant_preview')
+                            ->label('Result')
+                            ->content(function (Get $get): string {
+                                $colors = count($get('variant_color_ids') ?? []);
+                                $sizes = count($get('variant_size_ids') ?? []);
+
+                                if ($colors === 0 || $sizes === 0) {
+                                    return 'Pick at least one colour and one size.';
+                                }
+
+                                $total = $colors * $sizes;
+
+                                if ($get('has_dual_sizing')) {
+                                    $bottoms = count($get('variant_secondary_size_ids') ?? []) ?: $sizes;
+                                    $total *= $bottoms;
+                                }
+
+                                return "{$colors} colours x {$sizes} sizes = {$total} variants. "
+                                    .'Removing an option hides its variants but keeps their stock and order history.';
+                            }),
                     ]),
 
                 Section::make('Pricing')
