@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\Inventory\InventoryService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -25,6 +26,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
@@ -200,6 +202,30 @@ class VariantsRelationManager extends RelationManager
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    // Covers the combinations the per-size fields on the product
+                    // form cannot express — one colour priced differently, or a
+                    // handful of specific variants.
+                    BulkAction::make('setPrice')
+                        ->label('Set price')
+                        ->icon('heroicon-m-currency-dollar')
+                        ->schema([
+                            MoneyInput::make('retail_price_cents', 'Price')
+                                ->helperText('Leave blank to fall back to the product price.'),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
+                            $cents = $data['retail_price_cents'] ?? null;
+
+                            ProductVariant::whereIn('id', $records->pluck('id'))
+                                ->update(['retail_price_cents' => $cents]);
+
+                            Notification::make()
+                                ->title($cents === null ? 'Price override cleared' : 'Price updated')
+                                ->body($records->count().' variants repriced.')
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
                     // No bulk delete: a variant with order history should be
                     // deactivated, not removed, and bulk actions make that too
                     // easy to get wrong in one click.

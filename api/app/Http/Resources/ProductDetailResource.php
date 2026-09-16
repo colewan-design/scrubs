@@ -39,6 +39,23 @@ class ProductDetailResource extends JsonResource
             ])),
 
             'retail_price' => MoneyResource::make($this->retail_price_cents),
+            // The band the variants actually span. The page shows the selected
+            // variant's price once a size is picked, and "from <min>" before
+            // that — quoting the product default would misprice any product
+            // carrying a plus-size upcharge.
+            'retail_price_from' => $this->when(
+                $this->relationLoaded('variants'),
+                fn () => MoneyResource::make($this->retailPriceRangeCents()[0]),
+            ),
+            'retail_price_to' => $this->when(
+                $this->relationLoaded('variants'),
+                fn () => MoneyResource::make($this->retailPriceRangeCents()[1]),
+            ),
+            'retail_price_varies' => $this->when(
+                $this->relationLoaded('variants'),
+                fn () => $this->retailPriceVaries(),
+                false,
+            ),
             'wholesale_locked' => $user === null,
 
             // The entry rung, matching the grid. Deeper tiers are in

@@ -33,7 +33,10 @@ export interface ProductCard {
   name: string
   slug: string
   short_description: string | null
+  /** The lowest a shopper could pay, not the product default — see retail_price_varies. */
   retail_price: Money
+  /** True when sizes disagree on price, so the card must render "from". */
+  retail_price_varies?: boolean
   wholesale_locked: boolean
   wholesale_from?: Money
   image: { path: string; alt: string } | null
@@ -76,7 +79,12 @@ export interface ProductDetail {
   has_dual_sizing: boolean
   short_description: string | null
   panels: Array<{ key: string; label: string; body: string }>
+  /** The product's default. Prefer the variant's price, or the band below. */
   retail_price: Money
+  /** Cheapest and dearest across sellable variants; absent if variants weren't loaded. */
+  retail_price_from?: Money
+  retail_price_to?: Money
+  retail_price_varies?: boolean
   wholesale_locked: boolean
   wholesale_from?: Money
   wholesale_tiers?: WholesaleTier[]

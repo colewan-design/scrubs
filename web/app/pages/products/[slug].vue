@@ -69,6 +69,21 @@ const variant = computed(() =>
 )
 
 /**
+ * What the shopper will actually be charged.
+ *
+ * The cart prices from the variant, so the page has to as well — sizes can
+ * carry an upcharge, and showing the product's own figure would quote a price
+ * the basket then disagrees with. Before a size is chosen we show the cheapest
+ * variant, labelled "from".
+ */
+const displayPrice = computed(
+  () => variant.value?.retail_price ?? product.value.retail_price_from ?? product.value.retail_price,
+)
+
+/** Only while no specific variant is pinned down, and only if they differ. */
+const priceIsFrom = computed(() => !variant.value && product.value.retail_price_varies === true)
+
+/**
  * Availability per size for the currently selected colour. Out-of-stock sizes
  * stay visible but disabled — a shopper needs to see that their size exists
  * and is unavailable, rather than wondering whether it is offered at all (§2).
@@ -193,14 +208,35 @@ useHead({
           name: product.value.name,
           sku: product.value.base_sku,
           description: product.value.short_description,
-          offers: {
-            '@type': 'Offer',
-            priceCurrency: 'CAD',
-            price: (product.value.retail_price.cents / 100).toFixed(2),
-            availability: product.value.in_stock
-              ? 'https://schema.org/InStock'
-              : 'https://schema.org/OutOfStock',
-          },
+          // AggregateOffer once sizes disagree on price. Publishing a single
+          // figure for a product whose 3XL costs more is a price mismatch
+          // Google will flag, and a shopper arriving from search would land on
+          // a page quoting something else.
+          offers: product.value.retail_price_varies
+            ? {
+                '@type': 'AggregateOffer',
+                priceCurrency: 'CAD',
+                lowPrice: (
+                  (product.value.retail_price_from ?? product.value.retail_price).cents / 100
+                ).toFixed(2),
+                highPrice: (
+                  (product.value.retail_price_to ?? product.value.retail_price).cents / 100
+                ).toFixed(2),
+                offerCount: product.value.variants?.length ?? 0,
+                availability: product.value.in_stock
+                  ? 'https://schema.org/InStock'
+                  : 'https://schema.org/OutOfStock',
+              }
+            : {
+                '@type': 'Offer',
+                priceCurrency: 'CAD',
+                price: (
+                  (product.value.retail_price_from ?? product.value.retail_price).cents / 100
+                ).toFixed(2),
+                availability: product.value.in_stock
+                  ? 'https://schema.org/InStock'
+                  : 'https://schema.org/OutOfStock',
+              },
           // Deliberately no aggregateRating: the figures on the page are
           // placeholders, and marking them up would put invented review counts
           // into search results. Add it back with the reviews feature.
@@ -259,7 +295,8 @@ useHead({
           </div>
 
           <p class="tabular mt-4 text-[26px] font-medium text-ink-900">
-            {{ product.retail_price.currency }} {{ product.retail_price.formatted }}
+            <span v-if="priceIsFrom" class="text-[15px] font-normal text-ink-500">from </span
+            >{{ displayPrice.currency }} {{ displayPrice.formatted }}
           </p>
 
           <p v-if="product.short_description" class="mt-2 max-w-[56ch] text-[14px] text-ink-500">

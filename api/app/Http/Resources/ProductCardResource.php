@@ -39,7 +39,20 @@ class ProductCardResource extends JsonResource
                 'slug' => $this->category->slug,
             ]),
             'short_description' => $this->short_description,
-            'retail_price' => MoneyResource::make($this->retail_price_cents),
+            // The lowest price a shopper could actually pay, not the product's
+            // default. With a plus-size upcharge the two differ, and the grid
+            // must not quote a number the cart will not honour.
+            'retail_price' => $this->when(
+                $this->relationLoaded('variants'),
+                fn () => MoneyResource::make($this->retailPriceRangeCents()[0]),
+                fn () => MoneyResource::make($this->retail_price_cents),
+            ),
+            // Tells the card to render "from $65" rather than a flat figure.
+            'retail_price_varies' => $this->when(
+                $this->relationLoaded('variants'),
+                fn () => $this->retailPriceVaries(),
+                false,
+            ),
             'wholesale_locked' => $user === null,
             // The ENTRY rung, not the deepest one. The site's own promise is
             // "wholesale on orders over $200" — quoting the $1,500 tier's price

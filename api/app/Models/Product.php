@@ -73,6 +73,39 @@ class Product extends Model
         return $this->availableStock() > 0;
     }
 
+    /**
+     * The cheapest and dearest a shopper could actually pay for this product,
+     * across its sellable variants.
+     *
+     * Plus sizes commonly carry an upcharge, so the product's own
+     * `retail_price_cents` is a default rather than the truth — quoting it on a
+     * grid where 3XL costs more would advertise a price the cart will not
+     * honour. Variants are eager-loaded on both the listing and detail queries,
+     * so this costs no extra round trip.
+     *
+     * @return array{0:int, 1:int} [min, max]
+     */
+    public function retailPriceRangeCents(): array
+    {
+        $prices = $this->variants
+            ->where('is_active', true)
+            ->map(fn (ProductVariant $v): int => $v->retailPriceCents());
+
+        if ($prices->isEmpty()) {
+            return [$this->retail_price_cents, $this->retail_price_cents];
+        }
+
+        return [(int) $prices->min(), (int) $prices->max()];
+    }
+
+    /** True when variants disagree on price, so the UI must say "from". */
+    public function retailPriceVaries(): bool
+    {
+        [$min, $max] = $this->retailPriceRangeCents();
+
+        return $min !== $max;
+    }
+
     public function primaryImage(): ?ProductImage
     {
         return $this->images->firstWhere('is_primary', true) ?? $this->images->first();

@@ -92,8 +92,11 @@ const wishlisted = ref(false)
 
       <!-- Currency stated rather than assumed: the store prices in CAD and the
            redesign says so on every tile. -->
+      <!-- "from" once sizes disagree on price: retail_price carries the lowest
+           a shopper could pay, so a flat figure would undercut the plus sizes. -->
       <p class="tabular text-[15px] font-semibold text-ink-900">
-        {{ product.retail_price.currency }} {{ product.retail_price.formatted }}
+        <span v-if="product.retail_price_varies" class="font-normal text-ink-500">from </span
+        >{{ product.retail_price.currency }} {{ product.retail_price.formatted }}
       </p>
 
       <!-- Lifted above the title link's overlay so the lock takes its own click. -->

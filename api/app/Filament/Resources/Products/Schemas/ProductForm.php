@@ -4,13 +4,16 @@ namespace App\Filament\Resources\Products\Schemas;
 
 use App\Filament\Support\MoneyInput;
 use App\Models\Color;
+use App\Models\Product;
 use App\Models\Size;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -146,9 +149,9 @@ class ProductForm
                                 ->all())
                             ->helperText('Leave blank to pair every top size with the same bottom size.'),
 
-                        Placeholder::make('variant_preview')
+                        TextEntry::make('variant_preview')
                             ->label('Result')
-                            ->content(function (Get $get): string {
+                            ->state(function (Get $get): string {
                                 $colors = count($get('variant_color_ids') ?? []);
                                 $sizes = count($get('variant_size_ids') ?? []);
 
@@ -166,6 +169,41 @@ class ProductForm
                                 return "{$colors} colours x {$sizes} sizes = {$total} variants. "
                                     .'Removing an option hides its variants but keeps their stock and order history.';
                             }),
+                    ]),
+
+                // Sizes carry the upcharge in this catalogue (a 3XL costs more in
+                // every colour), so pricing is set per size here and lands on
+                // every variant of that size. One-off prices for a single
+                // colour/size still live on the variant, in the Inventory panel.
+                Section::make('Price by size')
+                    ->description('Leave a size blank to charge the retail price above. Setting a size here reprices it in every colour.')
+                    ->visible(fn (?Product $record): bool => $record !== null && $record->variants()->exists())
+                    ->schema([
+                        Repeater::make('size_prices')
+                            ->hiddenLabel()
+                            // Rows follow the product's sizes; they are not free
+                            // to add or remove here. Changing which sizes exist
+                            // is the Variants section's job.
+                            ->addable(false)
+                            ->deletable(false)
+                            ->reorderable(false)
+                            ->columns(3)
+                            ->schema([
+                                Hidden::make('size_id'),
+
+                                TextInput::make('size_label')
+                                    ->label('Size')
+                                    ->disabled()
+                                    ->dehydrated(false),
+
+                                MoneyInput::make('price_cents', 'Price'),
+
+                                TextInput::make('note')
+                                    ->label('')
+                                    ->disabled()
+                                    ->dehydrated(false)
+                                    ->visible(fn ($state): bool => filled($state)),
+                            ]),
                     ]),
 
                 Section::make('Pricing')
