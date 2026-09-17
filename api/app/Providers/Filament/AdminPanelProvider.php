@@ -2,12 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Dashboard;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -139,6 +139,50 @@ class AdminPanelProvider extends PanelProvider
                     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
                     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap">
                 HTML),
+            )
+            // The storefront's lockup is the wordmark over a spaced-out
+            // descriptor; brandName() renders only the first line, so the
+            // second is hung underneath it here.
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_LOGO_AFTER,
+                fn (): string => Blade::render(<<<'HTML'
+                    <p class="-mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
+                        Wholesale scrubs &amp; more
+                    </p>
+                HTML),
+            )
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_FOOTER,
+                fn (): string => Blade::render(<<<'HTML'
+                    <div class="mx-3 mb-3 rounded-xl bg-gray-50 p-3 dark:bg-white/5">
+                        <div class="flex items-start gap-2.5">
+                            <x-filament::icon
+                                icon="heroicon-o-user-group"
+                                class="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
+                            />
+                            <div>
+                                <p class="text-[13px] font-semibold leading-tight text-gray-950 dark:text-white">
+                                    Built for<br>Healthcare Heroes
+                                </p>
+                                <p class="mt-1 text-[11px] leading-tight text-gray-500 dark:text-gray-400">
+                                    Quality scrubs. Stronger teams.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                HTML),
+            )
+            // Scoped to the dashboard: a date stamp is orientation on a page
+            // about "today", and noise on a product edit form.
+            ->renderHook(
+                PanelsRenderHook::PAGE_HEADER_ACTIONS_BEFORE,
+                fn (): string => Blade::render(<<<'HTML'
+                    <p class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                        <x-filament::icon icon="heroicon-o-calendar" class="h-4 w-4" />
+                        {{ \Illuminate\Support\Carbon::now()->format('l, F j, Y') }}
+                    </p>
+                HTML),
+                scopes: Dashboard::class,
             )
             ->middleware([
                 EncryptCookies::class,
