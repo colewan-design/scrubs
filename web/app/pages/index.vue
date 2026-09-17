@@ -1,69 +1,63 @@
 <script setup lang="ts">
 import {
   ArrowRight,
-  Users,
-  UserPlus,
-  Tags,
-  PackageCheck,
-  Truck,
+  BadgeCheck,
+  ChevronRight,
   MapPin,
+  PackageCheck,
   RefreshCw,
+  Tags,
+  Truck,
+  UserPlus,
+  Users,
 } from 'lucide-vue-next'
 import type { ProductCard } from '~/composables/useApi'
 
-/**
- * §1: "Homepage should initially emphasize two primary shopping paths:
- * WOMEN and MEN." The split hero makes that structural rather than merely
- * stated, and keeps a two-category catalogue from looking sparse.
- *
- * Everything below it answers the second half of §1 — that a first-time
- * visitor has to understand within seconds that anyone can buy at retail and
- * that an account is what unlocks wholesale. Hence: the access strip, then the
- * three-step wholesale explainer, then the reasons to buy here at all.
- */
 const api = useApi()
 const auth = useAuthStore()
 
-// Six, to fill exactly one row at xl and divide cleanly at every smaller
-// breakpoint — a ragged last row is the one thing a featured strip must avoid.
 const { data: featured } = await useAsyncData('home-featured', () =>
-  api.get<{ data: ProductCard[] }>('/products', { per_page: 6 }),
+  api.get<{ data: ProductCard[] }>('/products', { per_page: 5 }),
 )
 
-// Shared with the header's announcement bar — one request, not two.
-const { minOrder } = await useWholesaleSummary()
+const { minOrder, freeShipping } = await useWholesaleSummary()
 
 useSeoMeta({
   title: 'Wholesale Scrubs in Canada',
   description:
-    'Canadian scrub uniforms for individuals, teams and resellers. Unlock wholesale pricing on orders over $200. Free shipping over $600.',
+    'Comfortable scrubs for every shift. Shop women’s and men’s medical uniforms with Canada-wide fulfilment and wholesale pricing for teams.',
 })
 
-/**
- * Hero photography is placeholder, like every other image on the site (§14 /
- * materials request §3): these are the scraped development shots, and both
- * paths are swapped for the client's own art in this one array.
- */
-const paths = [
-  {
-    eyebrow: 'Scrubs for her',
-    headline: 'Comfort moves care forward.',
-    blurb: 'Stylish, functional scrubs for every shift — because you do more.',
-    cta: 'Shop Women',
-    to: '/women',
-    image: '/placeholders/products/womens-cropped-sydney-outerwear--purple-haze.jpg',
-    alt: 'Healthcare worker in lavender scrubs',
-  },
-  {
-    eyebrow: 'Scrubs for him',
-    headline: 'Performance looks good on you.',
-    blurb: 'Durable, comfortable scrubs designed for every day and every shift.',
-    cta: 'Shop Men',
-    to: '/men',
-    image: '/placeholders/products/mens-stratton-henley-scrub-top--navy.jpg',
-    alt: 'Healthcare worker in navy scrubs with a stethoscope',
-  },
+const heroBenefits = [
+  { icon: BadgeCheck, label: 'Canadian fulfillment' },
+  { icon: BadgeCheck, label: 'Volume pricing' },
+  { icon: BadgeCheck, label: 'Easy reorders' },
 ]
+
+const trustItems = computed(() => [
+  {
+    icon: Truck,
+    title: freeShipping.value
+      ? `Free shipping over CAD ${freeShipping.value.formatted}`
+      : 'Free shipping on qualifying orders',
+    body: 'Across Canada',
+  },
+  {
+    icon: Users,
+    title: 'Volume pricing for teams',
+    body: 'The more you order, the more you save',
+  },
+  {
+    icon: PackageCheck,
+    title: 'Canadian fulfillment',
+    body: 'Fast, reliable delivery',
+  },
+  {
+    icon: RefreshCw,
+    title: 'Easy reordering',
+    body: 'Save favourites and reorder in minutes',
+  },
+])
 
 const steps = [
   {
@@ -77,7 +71,7 @@ const steps = [
     body: 'Get access to our tiered pricing based on your order volume.',
   },
   {
-    icon: PackageCheck,
+    icon: Users,
     title: 'Reach MOQ and save',
     body: 'Hit the minimum order quantity and unlock your wholesale pricing.',
   },
@@ -92,7 +86,7 @@ const reasons = [
   {
     icon: MapPin,
     title: 'Local pickup',
-    body: 'Pick up from our Canadian location (select areas).',
+    body: 'Pick up from our Canadian location in select areas.',
   },
   {
     icon: Users,
@@ -108,232 +102,251 @@ const reasons = [
 </script>
 
 <template>
-  <div>
-    <!-- One h1 for the document; the two hero panels are peers beneath it, and
-         neither is the page's subject on its own. -->
-    <h1 class="sr-only">BulkScrubs Direct — wholesale scrub uniforms in Canada</h1>
-
-    <!-- Split hero, full-bleed. Photography with a warm ground rather than a
-         dark fill: §1 explicitly rules out large dark background sections. -->
-    <section class="grid md:grid-cols-2" aria-label="Shop by fit">
-      <NuxtLink
-        v-for="path in paths"
-        :key="path.to"
-        :to="path.to"
-        class="group relative flex min-h-[360px] items-center overflow-hidden bg-surface-warm md:min-h-[440px] lg:min-h-[520px]"
-      >
-        <!-- The photograph sits on the right half, its left edge dissolved into
-             the panel so the studio backdrop never shows as a hard rectangle
-             against the warm ground.
-             A mask on the image rather than a warm gradient laid OVER it: a
-             scrim that reaches far enough left to hide the seam also washes the
-             garment out, which turned the navy set grey. This fades the pixels
-             themselves and leaves the rest of the photograph at full strength. -->
+  <div class="home-page overflow-hidden">
+    <section class="home-hero relative bg-[#fbf5ef]" aria-labelledby="home-hero-title">
+      <div class="absolute inset-0 mx-auto max-w-[1600px]" aria-hidden="true">
         <img
-          :src="path.image"
-          :alt="path.alt"
-          class="absolute inset-y-0 right-0 h-full w-[58%] object-cover object-top transition-transform duration-500 group-hover:scale-[1.03] sm:w-[50%] lg:w-[46%]"
-          style="
-            mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.65) 18%, #000 42%);
-            -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.65) 18%, #000 42%);
-          "
+          src="/images/home-hero-scrubs.png"
+          alt=""
+          class="h-full w-full object-cover object-top"
         >
+      </div>
 
-        <!-- Capped as a share of the panel on a phone, where a fixed width runs
-             the copy under the photograph. -->
-        <div class="relative max-w-[62%] px-6 py-12 sm:max-w-76 sm:px-10 md:px-8 lg:max-w-92 lg:px-12">
-          <p class="text-[11px] font-semibold tracking-[0.14em] text-ink-500 uppercase">
-            {{ path.eyebrow }}
+      <div class="container-content relative flex min-h-[520px] items-center pb-24 pt-10 md:min-h-[410px] md:pb-20 lg:min-h-[390px] lg:pt-6">
+        <div class="max-w-[610px] md:max-w-[47%] lg:max-w-[570px]">
+          <p class="text-[11px] font-semibold tracking-[0.28em] text-ink-500 uppercase">
+            For every shift. A brighter tomorrow.
           </p>
-          <h2 class="mt-3 font-display text-[34px] leading-[1.05] text-ink-900 lg:text-[44px]">
-            {{ path.headline }}
-          </h2>
-          <p class="mt-3 max-w-[30ch] text-[14px] leading-relaxed text-ink-700">
-            {{ path.blurb }}
-          </p>
-          <!-- Not a nested <a>: the whole panel is the link, so this is the
-               button's appearance without the element. -->
-          <span
-            class="mt-7 inline-flex h-11 items-center gap-2 rounded-sm bg-ink-900 px-5 text-[13px] font-medium tracking-[0.02em] text-white transition-colors group-hover:bg-ink-700"
+          <h1
+            id="home-hero-title"
+            class="mt-4 font-body text-[42px] leading-[0.98] font-bold tracking-[-0.055em] text-ink-900 sm:text-[50px] lg:text-[50px]"
           >
-            {{ path.cta }}
-            <ArrowRight
-              :size="15"
-              class="transition-transform duration-150 group-hover:translate-x-1"
-              aria-hidden="true"
-            />
-          </span>
+            Scrubs that<br>move with your shift.
+          </h1>
+          <p class="mt-4 max-w-[580px] text-[17px] leading-[1.35] text-ink-700 sm:text-[19px]">
+            Comfortable. Durable. Designed for the people<br class="hidden lg:block"> who care for Canadians.
+          </p>
+
+          <div class="mt-6 flex flex-wrap gap-3">
+            <NuxtLink
+              to="/women"
+              class="group inline-flex h-12 min-w-[178px] items-center justify-center gap-3 rounded-full bg-ink-900 px-7 text-[14px] font-semibold text-white transition hover:bg-ink-700"
+            >
+              Shop Women
+              <ArrowRight :size="17" class="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink
+              to="/men"
+              class="group inline-flex h-12 min-w-[178px] items-center justify-center gap-3 rounded-full border border-ink-900 bg-white/65 px-7 text-[14px] font-semibold text-ink-900 transition hover:bg-white"
+            >
+              Shop Men
+              <ArrowRight :size="17" class="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+            </NuxtLink>
+          </div>
+
+          <ul class="mt-6 flex flex-wrap gap-x-8 gap-y-2">
+            <li
+              v-for="benefit in heroBenefits"
+              :key="benefit.label"
+              class="flex items-center gap-2 text-[12px] text-ink-700"
+            >
+              <span class="grid size-5 place-items-center rounded-full border border-[#8ab4cf] bg-[#ecf7fc] text-[#376f94]">
+                <component :is="benefit.icon" :size="12" aria-hidden="true" />
+              </span>
+              {{ benefit.label }}
+            </li>
+          </ul>
         </div>
 
-        <!-- The flourish, on the men's panel only, exactly as drawn. Decorative:
-             it repeats nothing and announces nothing, so it is hidden from
-             assistive tech rather than read out as three orphaned words. -->
         <div
-          v-if="path.to === '/men'"
-          class="pointer-events-none absolute top-8 right-8 hidden w-44 -rotate-6 text-right lg:block"
+          class="absolute top-14 right-[42%] hidden -rotate-3 font-script text-[23px] leading-[1.08] text-ink-900 xl:block"
           aria-hidden="true"
         >
-          <p class="font-script text-[25px] leading-[1.2] text-ink-900">
-            Healthcare<br>Looks Good<br>On You
-          </p>
-          <svg
-            class="mt-1 ml-auto w-28 text-status-info/45"
-            viewBox="0 0 150 12"
-            fill="none"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M2 8C28 3 52 2 74 4c22 2 46 5 74 1"
-              stroke="currentColor"
-              stroke-width="4"
-              stroke-linecap="round"
-            />
-          </svg>
+          Comfort<br>fuels care.
+          <span class="ml-2 inline-block rotate-12">♡</span>
         </div>
-      </NuxtLink>
-    </section>
 
-    <!-- Access strip. The one sentence §1 asks a first-time visitor to leave
-         with: everyone can buy, an account is what changes the price. Members
-         are already past it, so they never see it. -->
-    <section
-      v-if="!auth.isAuthenticated"
-      class="border-b border-edge-subtle bg-surface-warm-deep"
-    >
-      <div
-        class="container-wide flex flex-wrap items-center gap-x-6 gap-y-3 py-5"
-      >
-        <Users :size="22" class="shrink-0 text-ink-700" aria-hidden="true" />
-        <p class="text-[15px] font-semibold text-ink-900">
-          Everyone can browse and shop at retail prices.
-        </p>
-        <span class="hidden h-5 w-px bg-edge lg:block" aria-hidden="true" />
-        <p class="text-[14px] text-ink-700">
-          Create an account to unlock wholesale pricing, tiered discounts and more.
-        </p>
-        <UiBaseButton to="/wholesale" variant="secondary" size="md" class="ml-auto">
-          Learn About Wholesale
-          <ArrowRight :size="15" aria-hidden="true" />
-        </UiBaseButton>
+        <div
+          class="absolute top-14 right-6 hidden rotate-2 text-right font-script text-[22px] leading-[1.05] text-ink-900 lg:block"
+          aria-hidden="true"
+        >
+          Healthcare<br>Looks Good<br>On You
+          <span class="mt-2 ml-auto block h-[2px] w-20 -rotate-6 bg-ink-500/65" />
+        </div>
+
+        <NuxtLink
+          to="/wholesale"
+          class="group absolute right-0 bottom-[74px] hidden h-[116px] w-[292px] items-center overflow-hidden rounded-l-xl border border-white/90 bg-white/90 shadow-sm backdrop-blur lg:flex xl:right-[-44px] xl:w-[328px]"
+        >
+          <div class="relative z-10 w-[52%] px-4">
+            <p class="text-[13px] leading-[1.2] font-semibold text-ink-900">
+              Same great scrubs.<br>A healthier tomorrow.
+            </p>
+            <span class="mt-3 grid size-8 place-items-center rounded-full bg-[#e3f2fa] text-[#2f6689]">
+              <ArrowRight :size="15" class="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+            </span>
+          </div>
+          <img
+            src="/images/wholesale-cta-scrub-stack.jpg"
+            alt="Folded navy scrubs"
+            class="absolute inset-y-0 right-0 h-full w-[49%] object-cover object-[28%_center]"
+          >
+        </NuxtLink>
       </div>
     </section>
 
-    <!-- Featured products -->
-    <section class="container-content pt-14">
-      <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+    <div class="container-content relative z-10 -mt-[58px]">
+      <ul class="grid overflow-hidden rounded-xl border border-white bg-white/95 shadow-[0_8px_28px_rgb(24_35_63/0.08)] backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
+        <li
+          v-for="(item, index) in trustItems"
+          :key="item.title"
+          class="flex min-h-[74px] items-center gap-4 px-6 py-4"
+          :class="index > 0 && 'lg:border-l lg:border-edge-subtle'"
+        >
+          <component :is="item.icon" :size="27" :stroke-width="1.7" class="shrink-0 text-[#3d7699]" aria-hidden="true" />
+          <span>
+            <span class="block text-[12px] leading-tight font-semibold text-ink-900">{{ item.title }}</span>
+            <span class="mt-1 block text-[10px] leading-tight text-ink-500">{{ item.body }}</span>
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <section class="container-content pt-7" aria-labelledby="featured-title">
+      <div class="flex items-end justify-between gap-6">
         <div>
-          <h2 class="font-display text-[28px] text-ink-900">Featured Scrubs</h2>
-          <p class="mt-1 text-[14px] text-ink-500">
-            Trusted styles. Great value. Ready for your next shift.
-          </p>
+          <h2 id="featured-title" class="font-display text-[26px] font-semibold text-ink-900">Featured Scrubs</h2>
+          <p class="mt-0.5 text-[12px] text-ink-500">Trusted styles. Great value. Ready for your next shift.</p>
         </div>
         <NuxtLink
           to="/products"
-          class="inline-flex items-center gap-2 py-1 text-[13px] font-medium text-ink-900 hover:underline underline-offset-4"
+          class="group hidden items-center gap-2 pb-1 text-[12px] font-semibold text-[#174b70] hover:underline sm:inline-flex"
         >
-          View All Products
-          <ArrowRight :size="15" aria-hidden="true" />
+          View all products
+          <ArrowRight :size="15" class="transition-transform group-hover:translate-x-1" aria-hidden="true" />
         </NuxtLink>
       </div>
 
-      <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+      <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <ShopProductCard
           v-for="product in featured?.data ?? []"
           :key="product.id"
           :product="product"
+          compact
         />
       </div>
+
+      <NuxtLink
+        to="/products"
+        class="mt-4 inline-flex items-center gap-2 text-[13px] font-semibold text-[#174b70] sm:hidden"
+      >
+        View all products <ArrowRight :size="15" aria-hidden="true" />
+      </NuxtLink>
     </section>
 
-    <!-- How wholesale works -->
-    <section class="container-content pt-16">
-      <div class="rounded-md border border-edge-subtle bg-surface-warm px-6 py-10 sm:px-10">
-        <div class="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
+    <section class="container-content pt-5" aria-labelledby="wholesale-title">
+      <div class="relative overflow-hidden rounded-xl border border-[#f1e8e2] bg-[#fff8f4] px-6 py-7 lg:px-8">
+        <div class="absolute inset-y-0 left-0 w-[28%] rounded-r-[120px] bg-[#fff0e9]" aria-hidden="true" />
+        <div class="relative grid items-center gap-8 lg:grid-cols-[300px_1fr_auto]">
           <div>
-            <h2 class="font-display text-[28px] text-ink-900">How Wholesale Works</h2>
-            <p class="mt-1 text-[14px] text-ink-500">
+            <h2 id="wholesale-title" class="font-display text-[27px] font-semibold text-ink-900">How Wholesale Works</h2>
+            <p class="mt-1 max-w-[31ch] text-[13px] leading-[1.4] text-ink-500">
               Get started in minutes and unlock better pricing for your team or business.
             </p>
           </div>
-          <UiBaseButton
-            v-if="!auth.isAuthenticated"
-            to="/account/register"
-            variant="secondary"
-            size="md"
-          >
-            Create an Account
-            <ArrowRight :size="15" aria-hidden="true" />
-          </UiBaseButton>
-          <UiBaseButton v-else to="/wholesale" variant="secondary" size="md">
-            See your pricing tiers
-            <ArrowRight :size="15" aria-hidden="true" />
-          </UiBaseButton>
-        </div>
 
-        <!-- The arrows are decoration between steps, so they are dropped rather
-             than stacked when the row wraps to one column. -->
-        <ol class="mt-9 grid gap-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-4">
-          <template v-for="(step, i) in steps" :key="step.title">
-            <!-- An <ol> may only contain <li>, so the connector is one too —
-                 presentational, and never counted or announced. -->
-            <li v-if="i > 0" role="presentation" class="hidden lg:block" aria-hidden="true">
-              <ArrowRight :size="18" class="shrink-0 text-ink-400" />
-            </li>
-            <li class="flex items-start gap-4">
-              <span
-                class="tabular grid size-10 shrink-0 place-items-center rounded-full bg-white text-[14px] font-medium text-ink-900"
-              >{{ i + 1 }}</span>
-              <span
-                class="grid size-10 shrink-0 place-items-center rounded-full bg-white text-ink-700"
-                aria-hidden="true"
-              >
-                <component :is="step.icon" :size="18" />
-              </span>
+          <ol class="grid gap-5 sm:grid-cols-3">
+            <li
+              v-for="(step, index) in steps"
+              :key="step.title"
+              class="flex min-w-0 gap-3 sm:border-l sm:border-edge-subtle sm:pl-5"
+            >
+              <span class="grid size-10 shrink-0 place-items-center rounded-full bg-white text-[14px] font-semibold text-[#225f88] shadow-sm">{{ index + 1 }}</span>
               <span class="min-w-0">
-                <span class="block text-[14px] font-semibold text-ink-900">{{ step.title }}</span>
-                <span class="mt-1 block text-[13px] leading-relaxed text-ink-500">
-                  {{ step.body }}
+                <span class="flex items-center gap-2 text-[11px] font-semibold text-ink-900">
+                  <component :is="step.icon" :size="18" :stroke-width="1.7" aria-hidden="true" />
+                  {{ step.title }}
                 </span>
+                <span class="mt-1 block text-[10px] leading-[1.4] text-ink-500">{{ step.body }}</span>
               </span>
             </li>
-          </template>
-        </ol>
+          </ol>
 
-        <p v-if="minOrder && !auth.isAuthenticated" class="mt-8 text-[13px] text-ink-500">
-          Minimum wholesale order {{ minOrder.formatted }}. Below that you can still
-          buy at regular retail pricing — no account required.
+          <NuxtLink
+            :to="auth.isAuthenticated ? '/wholesale' : '/account/register'"
+            class="group inline-flex h-11 items-center justify-center gap-3 rounded-lg bg-ink-900 px-6 text-[12px] font-semibold whitespace-nowrap text-white hover:bg-ink-700"
+          >
+            See your pricing tiers
+            <ArrowRight :size="16" class="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+          </NuxtLink>
+        </div>
+        <p v-if="minOrder && !auth.isAuthenticated" class="sr-only">
+          Minimum wholesale order CAD {{ minOrder.formatted }}.
         </p>
       </div>
     </section>
 
-    <!-- Why shop here -->
-    <section class="container-content pt-16">
-      <h2 class="font-display text-[28px] text-ink-900">Why Shop with BulkScrubs Direct?</h2>
-      <p class="mt-1 text-[14px] text-ink-500">
-        More than scrubs. We're here to support the people who care for Canadians.
-      </p>
-
-      <ul class="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
-        <li
-          v-for="(reason, i) in reasons"
-          :key="reason.title"
-          class="flex items-start gap-4"
-          :class="i > 0 && 'lg:border-l lg:border-edge-subtle lg:pl-8'"
-        >
-          <span
-            class="grid size-12 shrink-0 place-items-center rounded-full bg-surface-warm text-ink-700"
-            aria-hidden="true"
+    <section class="container-content grid gap-3 pt-3 lg:grid-cols-[1.35fr_1fr]" aria-label="Why shop with us">
+      <div class="rounded-xl border border-edge-subtle bg-white px-6 py-5 lg:px-8">
+        <h2 class="font-display text-[25px] font-semibold text-ink-900">Why Shop with BulkScrubs Direct?</h2>
+        <ul class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
+          <li
+            v-for="(reason, index) in reasons"
+            :key="reason.title"
+            class="flex gap-3 lg:flex-col"
+            :class="index > 0 && 'lg:border-l lg:border-edge-subtle lg:pl-6'"
           >
-            <component :is="reason.icon" :size="20" />
-          </span>
-          <span class="min-w-0">
-            <span class="block text-[14px] font-semibold text-ink-900">{{ reason.title }}</span>
-            <span class="mt-1 block max-w-[28ch] text-[13px] leading-relaxed text-ink-500">
-              {{ reason.body }}
+            <span class="grid size-10 shrink-0 place-items-center rounded-full bg-[#fbf4ef] text-ink-900">
+              <component :is="reason.icon" :size="19" :stroke-width="1.7" aria-hidden="true" />
             </span>
-          </span>
-        </li>
-      </ul>
+            <span>
+              <span class="block text-[12px] font-semibold text-ink-900">{{ reason.title }}</span>
+              <span class="mt-1 block text-[11px] leading-[1.45] text-ink-500">{{ reason.body }}</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="relative min-h-[220px] overflow-hidden rounded-xl bg-[#e5f4ff] px-7 py-6">
+        <div class="relative z-10 max-w-[46%]">
+          <h2 class="font-display text-[27px] leading-[1.02] font-semibold text-[#245477]">Built for<br>Healthcare Teams</h2>
+          <p class="mt-2 text-[11px] leading-[1.45] text-ink-500">
+            Outfit your clinic, department or organization with quality scrubs at better pricing.
+          </p>
+          <NuxtLink
+            to="/contact"
+            class="group mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-ink-900 px-5 text-[11px] font-semibold text-white hover:bg-ink-700"
+          >
+            Request a Quote
+            <ArrowRight :size="14" class="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+          </NuxtLink>
+        </div>
+        <img
+          src="/images/home-hero-scrubs.png"
+          alt="Healthcare professionals in lavender and navy scrubs"
+          class="absolute inset-y-0 right-[-18%] h-full w-[84%] object-cover object-[76%_center]"
+        >
+        <div class="absolute top-4 right-4 z-10 hidden rotate-3 text-right font-script text-[18px] leading-[1.05] text-ink-900 xl:block" aria-hidden="true">
+          Stronger<br>Teams<br>Healthier<br>Communities
+          <span class="block">♡</span>
+        </div>
+      </div>
     </section>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 767px) {
+  .home-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgb(251 245 239 / 0.98) 0%, rgb(251 245 239 / 0.92) 56%, rgb(251 245 239 / 0.25) 100%);
+    pointer-events: none;
+  }
+
+  .home-hero > .container-content {
+    z-index: 1;
+  }
+}
+</style>

@@ -19,6 +19,7 @@ const route = useRoute()
 const showNewsletter = computed(
   () => !/^\/(checkout|account|orders)(\/|$)/.test(route.path),
 )
+const footerSpacing = computed(() => route.path === '/wholesale' ? 'mt-0' : 'mt-20')
 </script>
 
 <template>
@@ -33,7 +34,7 @@ const showNewsletter = computed(
          band itself is suppressed (members, checkout, cart) — putting the
          margin on the footer instead left a 5rem hole under the band on every
          page that shows one. -->
-    <div class="mt-20">
+    <div :class="footerSpacing">
       <LayoutNewsletterBand v-if="showNewsletter" />
       <LayoutSiteFooter />
     </div>

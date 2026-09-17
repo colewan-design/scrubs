@@ -10,13 +10,14 @@ import { X } from 'lucide-vue-next'
  * authenticated, and dismissible.
  */
 const auth = useAuthStore()
+const route = useRoute()
 const { show } = useUnlockModal()
 const dismissed = useCookie<boolean>('bsd_unlock_dismissed', {
   maxAge: 60 * 60 * 24 * 7,
   sameSite: 'lax',
 })
 
-const visible = computed(() => !auth.isAuthenticated && !dismissed.value)
+const visible = computed(() => route.path !== '/' && !auth.isAuthenticated && !dismissed.value)
 </script>
 
 <template>

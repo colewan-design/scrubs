@@ -1,35 +1,23 @@
 <script setup lang="ts">
 import {
   ArrowRight,
+  BarChart3,
+  Box,
+  Building2,
   Check,
-  ChartColumnIncreasing,
-  Heart,
-  Hospital,
-  Lock,
+  CircleDollarSign,
   PackageCheck,
-  Repeat,
+  Plus,
+  Minus,
+  RefreshCw,
   Search,
-  ShieldCheck,
   ShoppingCart,
-  Store,
   Tags,
   Truck,
-  UserPlus,
-  Users,
+  UserRound,
+  UsersRound,
 } from 'lucide-vue-next'
 
-/**
- * §11's "Wholesale / How It Works" page.
- *
- * This is the page that converts a browser into an account, so it gets real
- * design attention rather than being treated as filler.
- *
- * Every number on it — the minimum, the free-shipping threshold, each tier's
- * threshold and its price — comes from the API. None of it is typed into this
- * template, because all of it is admin-editable and copy that drifts from what
- * the cart actually charges is worse than no copy at all. It shares the
- * header's useAsyncData key, so the page costs no extra request.
- */
 const auth = useAuthStore()
 const { tiers, minOrder, freeShipping } = await useWholesaleSummary()
 
@@ -39,457 +27,934 @@ useSeoMeta({
     'Unlock wholesale scrub pricing with a free account. No application, no approval — your order size sets your price.',
 })
 
-/** Read as "CAD $200.00": currency stated, never assumed. See ProductCard. */
-const money = (m: { currency: string; formatted: string } | null | undefined) =>
-  m ? `${m.currency} ${m.formatted}` : null
+const money = (value: { currency: string; formatted: string } | null | undefined) =>
+  value ? `${value.currency} ${value.formatted}` : ''
 
-const promises = [
-  { icon: Users, body: 'Everyone can browse and shop at retail prices.' },
-  { icon: Tags, body: 'Create an account to unlock wholesale pricing.' },
-  { icon: ChartColumnIncreasing, body: 'Larger orders automatically get better pricing.' },
-]
+const promises = computed(() => [
+  {
+    icon: UsersRound,
+    title: 'No approval required',
+    body: 'Create an account and start saving today.',
+  },
+  {
+    icon: Tags,
+    title: `Wholesale from ${money(minOrder.value) || 'CAD $200'}`,
+    body: `Unlock wholesale pricing at ${money(minOrder.value) || 'CAD $200'}+.`,
+  },
+  {
+    icon: BarChart3,
+    title: 'Better pricing at higher volumes',
+    body: 'The more you order, the more you save.',
+  },
+])
 
 const steps = computed(() => [
   {
     icon: Search,
     title: 'Browse Products',
-    body: 'Anyone can browse and shop our full range of scrubs at retail prices.',
+    body: 'Shop our full range of scrubs at retail prices.',
   },
   {
-    icon: UserPlus,
+    icon: UserRound,
     title: 'Create Account',
-    body: 'Sign up for a free account — it only takes a minute.',
+    body: 'Sign up for a free wholesale account — it only takes a minute.',
+  },
+  {
+    icon: Box,
+    title: 'Reach Minimum',
+    body: `Place an order of at least ${money(minOrder.value) || 'CAD $200'} (${minOrder.value ? 'min. 4 units' : 'minimum order'}) to unlock wholesale pricing.`,
   },
   {
     icon: Tags,
-    title: 'See Wholesale Tiers',
-    body: 'Get access to our tiered pricing based on your order volume.',
-  },
-  {
-    icon: PackageCheck,
-    title: 'Reach the Minimum',
-    body: minOrder.value
-      ? `Place an order that meets the minimum order value (${money(minOrder.value)}) to unlock wholesale pricing.`
-      : 'Place an order that meets the minimum order value to unlock wholesale pricing.',
+    title: 'Pricing Unlocks',
+    body: 'Your wholesale pricing is applied automatically at checkout — no codes needed.',
   },
   {
     icon: ShoppingCart,
     title: 'Checkout',
-    body: 'Your wholesale pricing is applied automatically at checkout — no codes to enter.',
+    body: 'Complete your order with our secure, fast checkout.',
   },
   {
     icon: Truck,
     title: 'Track Order',
-    body: 'We get your order ready and keep you updated with tracking from our Canadian locations.',
+    body: 'We’ll get your order ready and keep you updated with tracking from our Canadian locations.',
   },
 ])
 
-const flexible = [
-  { icon: Users, title: 'Group ordering', body: 'Outfit your team with ease.' },
-  { icon: Hospital, title: 'Clinic outfitting', body: 'Everything you need in one place.' },
-  { icon: Store, title: 'Reseller support', body: 'Reliable supply and competitive pricing.' },
-  { icon: Repeat, title: 'Easy reorders', body: 'Reorder a past order in a couple of clicks.' },
-]
-
-/**
- * One tint per rung, in the order the mockup draws them: blue, violet, then the
- * house green on the best price. Beyond three tiers it cycles rather than
- * inventing colours — the ladder reads as a progression either way, and sage
- * still lands on the top rung because sage means wholesale on this site.
- */
-const TIER_TINTS = [
-  { card: 'border-status-info/20 bg-tint-blue', icon: 'text-status-info' },
-  { card: 'border-violet/20 bg-tint-violet', icon: 'text-violet' },
-  { card: 'border-sage/30 bg-sage-soft', icon: 'text-sage' },
-]
-
-const tintFor = (i: number) => TIER_TINTS[i % TIER_TINTS.length]!
-
-const trust = [
-  { icon: ShieldCheck, label: 'Trusted brands' },
-  { icon: Users, label: 'Better teams' },
-  { icon: Heart, label: 'Healthier communities' },
-]
-
-/**
- * Placeholder photography, like most of the shots on the site (§14 / materials
- * request §3) — these are the scraped development shots and get swapped for the
- * client's own art here.
- */
-const heroImages = [
+const tierMeta = [
   {
-    src: '/placeholders/products/womens-cropped-sydney-outerwear--purple-haze.jpg',
-    alt: 'Healthcare worker in lavender scrubs',
+    label: 'Starter',
+    description: 'Great for small clinics and teams getting started.',
+    footer: 'Unlock wholesale pricing',
   },
   {
-    src: '/placeholders/products/mens-stratton-henley-scrub-top--navy.jpg',
-    alt: 'Healthcare worker in navy scrubs',
+    label: 'Business',
+    description: 'Ideal for growing clinics and multi-location teams.',
+    footer: 'Even better savings',
+  },
+  {
+    label: 'Volume',
+    description: 'Maximum value for large organizations and resellers.',
+    footer: 'Our best pricing',
   },
 ]
+
+const visibleTiers = computed(() => tiers.value.slice(0, 3))
+
+const benefits = [
+  { icon: UsersRound, title: 'Group ordering', body: 'Outfit your team with ease.' },
+  { icon: Building2, title: 'Clinic outfitting', body: 'Everything you need in one place.' },
+  { icon: CircleDollarSign, title: 'Reseller support', body: 'Reliable supply and competitive pricing.' },
+  { icon: RefreshCw, title: 'Easy reorders', body: 'Reorder past orders in a couple of clicks.' },
+]
+
+const faqs = computed(() => [
+  {
+    question: 'Do I need a registered business?',
+    answer: 'No. Your order size is the only qualification.',
+  },
+  {
+    question: 'What if my order is under the minimum?',
+    answer: 'You can still place your order at regular retail pricing.',
+  },
+  {
+    question: 'Is there an approval process?',
+    answer: 'No. Create a free account and wholesale pricing unlocks automatically.',
+  },
+  {
+    question: 'When is shipping free?',
+    answer: `Shipping is free on qualifying orders of ${money(freeShipping.value) || 'CAD $600'} or more.`,
+  },
+  {
+    question: 'Can I combine different products to reach the minimum?',
+    answer: 'Yes. Mix styles, colours and sizes from across the catalogue in one order.',
+  },
+])
+
+const openFaq = ref(0)
+
+function toggleFaq(index: number) {
+  openFaq.value = openFaq.value === index ? -1 : index
+}
 </script>
 
 <template>
-  <div>
-    <!-- ------------------------------------------------------------- hero -->
-    <section
-      class="relative overflow-hidden bg-surface-warm sm:flex sm:min-h-[420px] sm:items-center
-             lg:min-h-[520px]"
-    >
-      <!-- On a phone the photographs are a band above the copy: sharing the
-           width with them leaves the headline three words per line and breaks
-           the buttons in half. -->
-      <div class="flex h-52 w-full sm:hidden" aria-hidden="true">
-        <img
-          v-for="image in heroImages"
-          :key="image.src"
-          :src="image.src"
-          :alt="image.alt"
-          class="h-full w-1/2 object-cover object-top"
-        >
+  <div class="wholesale-page">
+    <section class="hero-section">
+      <div class="hero-photo" aria-hidden="true">
+        <img src="/images/home-hero-scrubs.png" alt="">
       </div>
 
-      <!-- From sm up, the same treatment as the home hero: the photographs'
-           left edge is dissolved into the ground by a mask on the pixels
-           themselves, so the studio backdrop never shows as a hard rectangle.
-           A scrim laid over the top instead would wash the garments out. -->
-      <div
-        class="absolute inset-y-0 right-0 hidden h-full w-[48%] sm:flex lg:w-[52%]"
-        style="
-          mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.65) 14%, #000 34%);
-          -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.65) 14%, #000 34%);
-        "
-        aria-hidden="true"
-      >
-        <img
-          v-for="image in heroImages"
-          :key="image.src"
-          :src="image.src"
-          :alt="image.alt"
-          class="h-full w-1/2 object-cover object-top"
-        >
-      </div>
+      <div class="wholesale-container hero-content">
+        <div class="hero-copy">
+          <p class="eyebrow">Wholesale program <span aria-hidden="true" /></p>
+          <h1>Wholesale<br>Made Simple.</h1>
+          <p class="hero-intro">
+            Quality scrubs. Better teams. Greater impact. Our wholesale program makes it easy for
+            clinics, businesses and organizations to save on the scrubs they need — with a simple,
+            transparent process.
+          </p>
 
-      <div class="relative w-full">
-        <div class="container-content">
-          <div class="py-10 sm:max-w-[26rem] sm:py-12 lg:max-w-[34rem] lg:py-20">
-            <p class="text-[11px] font-semibold tracking-[0.14em] text-ink-500 uppercase">
-              Wholesale / How It Works
-            </p>
-            <h1 class="mt-3 font-display text-[36px] leading-[1.05] text-ink-900 lg:text-[52px]">
-              Wholesale Made Simple.
-            </h1>
-            <p class="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-ink-700 lg:text-[17px]">
-              Quality scrubs. Better teams. Greater impact. Our wholesale program makes it easy for
-              clinics, businesses and organizations to save on the scrubs they need — with a simple,
-              transparent process.
-            </p>
+          <ul class="hero-checks" aria-label="Wholesale account benefits">
+            <li><Check :size="13" aria-hidden="true" /> No approval required</li>
+            <li><Check :size="13" aria-hidden="true" /> Free account</li>
+            <li>
+              <Check :size="13" aria-hidden="true" /> Wholesale pricing starts at
+              {{ money(minOrder) || 'CAD $200' }} per order
+            </li>
+          </ul>
 
-            <div class="mt-7 flex flex-wrap gap-2">
-              <UiBaseButton v-if="!auth.isAuthenticated" to="/account/register" size="lg">
-                Create an Account
-                <ArrowRight :size="16" aria-hidden="true" />
-              </UiBaseButton>
-              <UiBaseButton
-                to="/products"
-                :variant="auth.isAuthenticated ? 'primary' : 'secondary'"
-                size="lg"
-              >
-                Shop All Scrubs
-                <ArrowRight :size="16" aria-hidden="true" />
-              </UiBaseButton>
-            </div>
+          <div class="hero-actions">
+            <UiBaseButton v-if="!auth.isAuthenticated" to="/account/register" size="lg">
+              Create Wholesale Account
+              <ArrowRight :size="16" aria-hidden="true" />
+            </UiBaseButton>
+            <UiBaseButton
+              to="/products"
+              :variant="auth.isAuthenticated ? 'primary' : 'secondary'"
+              size="lg"
+            >
+              Shop All Scrubs
+            </UiBaseButton>
           </div>
         </div>
 
-        <!-- The flourish, drawn as on the home hero. Decorative: it repeats
-             nothing and announces nothing, so it is hidden from assistive tech
-             rather than read out as three orphaned words. -->
-        <div
-          class="pointer-events-none absolute top-10 right-10 hidden w-48 -rotate-6 text-right xl:block"
-          aria-hidden="true"
-        >
-          <p class="font-script text-[26px] leading-[1.2] text-ink-900">
-            Stronger<br>Healthcare<br>Together.
-          </p>
-          <svg
-            class="mt-1 ml-auto w-32 text-status-info/45"
-            viewBox="0 0 150 12"
-            fill="none"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M2 8C28 3 52 2 74 4c22 2 46 5 74 1"
-              stroke="currentColor"
-              stroke-width="4"
-              stroke-linecap="round"
-            />
-          </svg>
+        <div class="hero-note handwritten" aria-hidden="true">
+          Stronger<br>Healthcare<br>Together.
+          <span />
         </div>
+        <p class="hero-side-note" aria-hidden="true">People<br>care<br>bigger<br>together</p>
       </div>
     </section>
 
-    <!-- The one sentence a first-time visitor has to leave with, in three
-         parts: anyone can buy, an account changes the price, size sets the tier. -->
-    <section class="border-y border-edge-subtle bg-surface-warm-deep">
-      <ul class="container-content grid gap-4 py-5 sm:grid-cols-3 sm:gap-8">
-        <li v-for="item in promises" :key="item.body" class="flex items-center gap-3">
-          <component :is="item.icon" :size="22" class="shrink-0 text-ink-700" aria-hidden="true" />
-          <p class="text-[14px] leading-snug text-ink-900">{{ item.body }}</p>
+    <section class="promise-band" aria-label="Wholesale highlights">
+      <ul class="wholesale-container promise-grid">
+        <li v-for="item in promises" :key="item.title">
+          <span class="round-icon"><component :is="item.icon" :size="22" aria-hidden="true" /></span>
+          <span>
+            <strong>{{ item.title }}</strong>
+            <small>{{ item.body }}</small>
+          </span>
         </li>
       </ul>
     </section>
 
-    <!-- ------------------------------------------------------ how it works -->
-    <section class="container-content pt-14">
-      <h2 class="font-display text-[30px] text-ink-900">How It Works</h2>
-      <p class="mt-1.5 text-[15px] text-ink-500">
-        From browsing to delivery, wholesale is easy with BulkScrubs Direct.
-      </p>
+    <section class="wholesale-container how-section section-space" aria-labelledby="how-title">
+      <div class="section-heading-row">
+        <div>
+          <h2 id="how-title">How It Works</h2>
+          <p>Get wholesale pricing in 6 simple steps — from browsing to delivery.</p>
+        </div>
+        <NuxtLink to="/products" class="section-link">Simple. Fast. Built for healthcare teams.</NuxtLink>
+      </div>
 
-      <!-- An ordered list, because the order is the point. The arrows between
-           steps are decoration on top of that, and only at a width where six
-           columns actually fit. -->
-      <ol class="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 xl:gap-0">
-        <li
-          v-for="(step, i) in steps"
-          :key="step.title"
-          class="relative rounded-md bg-surface-sunken p-5 xl:mr-6"
-        >
-          <span
-            class="grid size-8 place-items-center rounded-full bg-surface-warm-deep text-[13px]
-                   font-semibold text-ink-700"
-            aria-hidden="true"
-          >
-            {{ i + 1 }}
-          </span>
-          <component :is="step.icon" :size="24" class="mt-4 text-ink-900" aria-hidden="true" />
-          <h3 class="mt-3 font-body text-[15px] font-medium text-ink-900">{{ step.title }}</h3>
-          <p class="mt-1.5 text-[13px] leading-relaxed text-ink-700">{{ step.body }}</p>
-
+      <ol class="steps-grid">
+        <li v-for="(step, index) in steps" :key="step.title">
+          <span class="step-number">{{ index + 1 }}</span>
+          <component :is="step.icon" :size="23" stroke-width="1.7" aria-hidden="true" />
+          <h3>{{ step.title }}</h3>
+          <p>{{ step.body }}</p>
           <ArrowRight
-            v-if="i < steps.length - 1"
-            :size="16"
-            class="absolute top-1/2 -right-4 hidden -translate-y-1/2 text-ink-400 xl:block"
+            v-if="index < steps.length - 1"
+            class="step-arrow"
+            :size="17"
             aria-hidden="true"
           />
         </li>
       </ol>
     </section>
 
-    <!-- ------------------------------------------------------------ tiers -->
-    <section class="container-content pt-14">
-      <div class="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)_minmax(0,0.85fr)]">
-        <!-- What the program is aimed at -->
-        <div class="rounded-md border border-status-info/20 bg-tint-blue p-6">
-          <h2 class="font-display text-[22px] leading-tight text-ink-900">
-            Key Targets for Wholesale Customers
-          </h2>
-          <p class="mt-2.5 text-[14px] leading-relaxed text-ink-700">
-            Our wholesale program is designed to be accessible and flexible, with competitive
-            pricing and convenient shipping.
-          </p>
-
-          <div class="mt-5 space-y-4">
-            <div class="flex items-center gap-3">
-              <span class="grid size-10 shrink-0 place-items-center rounded-full bg-white text-ink-700">
-                <Tags :size="18" aria-hidden="true" />
-              </span>
-              <p class="text-[14px] text-ink-700">
-                Wholesale access starting at
-                <span class="tabular block font-semibold text-ink-900">{{ money(minOrder) }}</span>
-              </p>
-            </div>
-
-            <div class="flex items-center gap-3">
-              <span class="grid size-10 shrink-0 place-items-center rounded-full bg-white text-ink-700">
-                <Truck :size="18" aria-hidden="true" />
-              </span>
-              <p class="text-[14px] text-ink-700">
-                Free shipping on qualifying orders
-                <span class="tabular block font-semibold text-ink-900">{{ money(freeShipping) }}+</span>
-              </p>
-            </div>
+    <section class="tiers-band section-space" aria-labelledby="tiers-title">
+      <div class="wholesale-container tiers-inner">
+        <div class="section-heading-row">
+          <div>
+            <h2 id="tiers-title">Wholesale Tiers</h2>
+            <p>The more you order, the more you save. Qualify by order value or units — whichever comes first.</p>
           </div>
-
-          <!-- True, and worth saying: these are settings the client edits, not
-               figures baked into the site. -->
-          <p class="mt-5 text-[12px] leading-relaxed text-ink-500">
-            Our wholesale tiers and thresholds are configurable and may be updated as the program
-            grows.
-          </p>
+          <div class="tiers-note handwritten" aria-hidden="true">
+            Higher volumes.<br>Greater impact.
+            <span />
+          </div>
         </div>
 
-        <!-- The ladder itself -->
-        <div>
-          <h2 class="font-display text-[26px] text-ink-900">Wholesale Tiers</h2>
-          <p class="mt-1.5 max-w-[52ch] text-[14px] leading-relaxed text-ink-700">
-            The more you order, the more you save. Qualify by order value or by units — whichever
-            you reach first — and the cart applies the tier for you.
-          </p>
-
-          <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <div
-              v-for="(tier, i) in tiers"
-              :key="tier.slug"
-              class="flex flex-col rounded-md border p-4"
-              :class="tintFor(i).card"
-            >
-              <div class="flex items-center gap-2">
-                <ChartColumnIncreasing
-                  :size="18"
-                  :class="tintFor(i).icon"
-                  aria-hidden="true"
-                />
-                <h3 class="font-body text-[15px] font-medium text-ink-900">{{ tier.name }}</h3>
+        <div class="tiers-grid">
+          <article
+            v-for="(tier, index) in visibleTiers"
+            :key="tier.slug"
+            class="tier-card"
+            :class="{ featured: index === 1 }"
+          >
+            <p v-if="index === 1" class="popular">Most popular</p>
+            <div class="tier-body">
+              <div class="tier-title-row">
+                <span class="tier-icon"><Box :size="25" stroke-width="1.5" aria-hidden="true" /></span>
+                <h3>{{ tier.name }}</h3>
+                <span class="tier-label">{{ tierMeta[index]?.label }}</span>
               </div>
-
-              <p class="mt-3 text-[13px] leading-relaxed text-ink-700">
-                From <span class="tabular font-semibold text-ink-900">{{ money(tier.min_subtotal) }}</span>
-                <template v-if="tier.min_qty">
-                  or <span class="font-semibold text-ink-900">{{ tier.min_qty }} units</span>
-                </template>
+              <p class="tier-threshold">
+                From {{ money(tier.min_subtotal) }}
+                <strong v-if="tier.min_qty">{{ tier.min_qty }} units</strong>
               </p>
-
-              <!-- Admin-editable per-tier copy. Absent for a tier that has none,
-                   rather than invented here. -->
-              <p v-if="tier.description" class="mt-2 text-[13px] leading-relaxed text-ink-500">
-                {{ tier.description }}
-              </p>
-
-              <!-- §3: a guest is told a tier exists, never what it costs. -->
-              <p
-                v-if="tier.locked"
-                class="mt-auto flex items-center gap-1.5 pt-3 text-[13px]"
-                :class="tintFor(i).icon"
-              >
-                <Lock :size="14" aria-hidden="true" /> Sign in to view pricing
-              </p>
-              <p v-else-if="tier.unit_price" class="mt-auto pt-3">
-                <span class="tabular font-display text-[22px] text-ink-900">
-                  {{ tier.unit_price.formatted }}
-                </span>
-                <span class="text-[12px] text-ink-500"> per set</span>
-              </p>
-              <p v-else-if="tier.discount_percent" class="mt-auto pt-3">
-                <span class="tabular font-display text-[22px] text-ink-900">
-                  {{ tier.discount_percent }}% off
-                </span>
-                <span class="text-[12px] text-ink-500"> every item</span>
-              </p>
+              <p class="tier-description">{{ tier.description || tierMeta[index]?.description }}</p>
             </div>
-          </div>
-
-          <p class="mt-4 text-[13px] text-ink-500">
-            Below <span class="tabular">{{ money(minOrder) }}</span> you can still order at regular
-            retail pricing — nothing is gated.
-          </p>
-        </div>
-
-        <!-- Who it suits -->
-        <div class="rounded-md border border-status-info/20 bg-tint-blue p-6">
-          <h2 class="font-display text-[22px] leading-tight text-ink-900">Flexible for Your Needs</h2>
-          <p class="mt-2.5 text-[14px] leading-relaxed text-ink-700">
-            Our wholesale program supports a variety of customers, including:
-          </p>
-
-          <ul class="mt-5 space-y-4">
-            <li v-for="item in flexible" :key="item.title" class="flex gap-3">
-              <component
-                :is="item.icon"
-                :size="20"
-                class="mt-0.5 shrink-0 text-ink-700"
-                aria-hidden="true"
-              />
-              <p class="text-[13px] leading-snug text-ink-700">
-                <span class="block text-[14px] font-medium text-ink-900">{{ item.title }}</span>
-                {{ item.body }}
-              </p>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- --------------------------------------------------------- questions -->
-    <section class="container-content pt-14">
-      <div class="rounded-md border border-edge-subtle p-6 sm:p-8">
-        <h2 class="font-display text-[24px] text-ink-900">Common questions</h2>
-        <dl class="mt-5 grid gap-6 md:grid-cols-2">
-          <div>
-            <dt class="text-[15px] font-medium text-ink-900">Do I need a registered business?</dt>
-            <dd class="mt-1.5 flex gap-2 text-[14px] text-ink-700">
-              <Check :size="16" class="mt-0.5 shrink-0 text-sage" aria-hidden="true" />
-              No. Your order size is the only qualification.
-            </dd>
-          </div>
-          <div>
-            <dt class="text-[15px] font-medium text-ink-900">Is there an approval process?</dt>
-            <dd class="mt-1.5 flex gap-2 text-[14px] text-ink-700">
-              <Check :size="16" class="mt-0.5 shrink-0 text-sage" aria-hidden="true" />
-              None. Pricing unlocks the moment you create an account.
-            </dd>
-          </div>
-          <div>
-            <dt class="text-[15px] font-medium text-ink-900">
-              What if my order is under the minimum?
-            </dt>
-            <dd class="mt-1.5 flex gap-2 text-[14px] text-ink-700">
-              <Check :size="16" class="mt-0.5 shrink-0 text-sage" aria-hidden="true" />
-              You can still order at regular retail pricing.
-            </dd>
-          </div>
-          <div>
-            <dt class="text-[15px] font-medium text-ink-900">When is shipping free?</dt>
-            <dd class="mt-1.5 flex gap-2 text-[14px] text-ink-700">
-              <Check :size="16" class="mt-0.5 shrink-0 text-sage" aria-hidden="true" />
-              On qualifying orders over <span class="tabular">{{ money(freeShipping) }}.</span>
-            </dd>
-          </div>
-        </dl>
-      </div>
-    </section>
-
-    <!-- --------------------------------------------------------------- cta -->
-    <section class="mt-14 border-y border-edge-subtle bg-surface-warm">
-      <div class="grid items-center lg:grid-cols-[minmax(0,0.9fr)_minmax(0,2fr)]">
-        <img
-          src="/images/wholesale-cta-scrub-stack.jpg"
-          alt=""
-          loading="lazy"
-          class="hidden h-full max-h-[260px] w-full object-cover lg:block"
-        >
-
-        <div class="container-content flex flex-wrap items-center justify-between gap-8 py-10">
-          <div class="min-w-[min(100%,22rem)] flex-1">
-            <h2 class="font-display text-[28px] text-ink-900">Ready to Save on Scrubs?</h2>
-            <p class="mt-1.5 max-w-[54ch] text-[14px] text-ink-700">
-              Create an account to unlock wholesale pricing, or start browsing our products today.
+            <p class="tier-footer">
+              <span v-if="tier.locked">{{ tierMeta[index]?.footer }}</span>
+              <span v-else-if="tier.discount_percent">{{ tier.discount_percent }}% off every item</span>
+              <span v-else-if="tier.unit_price">{{ tier.unit_price.formatted }} per item</span>
+              <span v-else>{{ tierMeta[index]?.footer }}</span>
             </p>
-            <div class="mt-5 flex flex-wrap gap-2">
-              <UiBaseButton v-if="!auth.isAuthenticated" to="/account/register">
-                Create an Account
-                <ArrowRight :size="15" aria-hidden="true" />
-              </UiBaseButton>
-              <UiBaseButton
-                to="/products"
-                :variant="auth.isAuthenticated ? 'primary' : 'secondary'"
-              >
-                Shop All Scrubs
-                <ArrowRight :size="15" aria-hidden="true" />
-              </UiBaseButton>
-            </div>
-          </div>
+          </article>
+        </div>
+      </div>
+    </section>
 
-          <ul class="grid w-full grid-cols-3 gap-4 sm:flex sm:w-auto sm:gap-8">
-            <li v-for="item in trust" :key="item.label" class="text-center sm:w-[7.5rem]">
-              <span class="mx-auto grid size-10 place-items-center rounded-full bg-white text-ink-700">
-                <component :is="item.icon" :size="18" aria-hidden="true" />
-              </span>
-              <p class="mt-2 text-[12px] text-ink-700">{{ item.label }}</p>
-            </li>
+    <section class="wholesale-container benefits-section section-space" aria-labelledby="benefits-title">
+      <div class="section-heading-row compact">
+        <h2 id="benefits-title">Why businesses choose BulkScrubs Direct</h2>
+        <p>Trusted by healthcare teams across Canada.</p>
+      </div>
+
+      <ul class="benefits-grid">
+        <li v-for="item in benefits" :key="item.title">
+          <span class="round-icon"><component :is="item.icon" :size="22" aria-hidden="true" /></span>
+          <span><strong>{{ item.title }}</strong><small>{{ item.body }}</small></span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="wholesale-container faq-section" aria-labelledby="faq-title">
+      <div class="faq-intro">
+        <h2 id="faq-title">Common questions</h2>
+        <p>Quick answers about our wholesale program.</p>
+        <NuxtLink to="/contact" class="faq-link">
+          View all FAQs <ArrowRight :size="15" aria-hidden="true" />
+        </NuxtLink>
+      </div>
+
+      <div class="faq-list">
+        <article v-for="(faq, index) in faqs" :key="faq.question" :class="{ open: openFaq === index }">
+          <h3>
+            <button
+              type="button"
+              :aria-expanded="openFaq === index"
+              :aria-controls="`faq-answer-${index}`"
+              @click="toggleFaq(index)"
+            >
+              {{ faq.question }}
+              <component :is="openFaq === index ? Minus : Plus" :size="17" aria-hidden="true" />
+            </button>
+          </h3>
+          <p v-show="openFaq === index" :id="`faq-answer-${index}`">{{ faq.answer }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="closing-cta" aria-labelledby="closing-title">
+      <div class="closing-photo">
+        <img src="/images/wholesale-cta-scrub-stack.jpg" alt="A neatly folded stack of navy and lavender scrubs">
+      </div>
+      <div class="closing-copy">
+        <h2 id="closing-title">Ready for wholesale pricing?</h2>
+        <p>Create an account and start saving on scrubs today.<br>It only takes about 1 minute.</p>
+        <div class="closing-actions">
+          <UiBaseButton v-if="!auth.isAuthenticated" to="/account/register" size="lg">
+            Create Wholesale Account <ArrowRight :size="16" aria-hidden="true" />
+          </UiBaseButton>
+          <UiBaseButton v-else to="/products" size="lg">
+            Shop All Scrubs <ArrowRight :size="16" aria-hidden="true" />
+          </UiBaseButton>
+          <ul>
+            <li><Check :size="13" aria-hidden="true" /> No application</li>
+            <li><Check :size="13" aria-hidden="true" /> No approval</li>
+            <li><Check :size="13" aria-hidden="true" /> Takes about 1 minute</li>
           </ul>
         </div>
+      </div>
+      <div class="closing-note handwritten" aria-hidden="true">
+        Same great scrubs.<br>A healthier tomorrow.
+        <span />
       </div>
     </section>
   </div>
 </template>
+
+<style scoped>
+.wholesale-page {
+  --lavender: #7e71a7;
+  --lavender-soft: #f1eef8;
+  --warm: #faf6f2;
+  --warm-deep: #f3ece6;
+  color: var(--color-ink-700);
+}
+
+.wholesale-container {
+  width: min(100% - 2rem, 1280px);
+  margin-inline: auto;
+}
+
+.section-space {
+  padding-block: 50px;
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.section-heading-row h2,
+.faq-intro h2,
+.closing-copy h2 {
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+  letter-spacing: -0.035em;
+}
+
+.section-heading-row p,
+.faq-intro > p,
+.closing-copy > p {
+  margin-top: .35rem;
+  font-size: .86rem;
+  line-height: 1.55;
+  color: var(--color-ink-500);
+}
+
+.hero-section {
+  position: relative;
+  min-height: 500px;
+  overflow: hidden;
+  background: #f9f4ee;
+}
+
+.hero-photo {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.hero-content {
+  position: relative;
+  min-height: 500px;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 2;
+  width: 47%;
+  padding-block: 62px 54px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  color: var(--color-ink-500);
+  font-size: .69rem;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.eyebrow span {
+  width: 38px;
+  height: 1px;
+  background: var(--color-ink-400);
+}
+
+.hero-copy h1 {
+  margin-top: .9rem;
+  font-size: clamp(3.2rem, 5vw, 4.85rem);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+.hero-intro {
+  max-width: 39rem;
+  margin-top: 1.35rem;
+  font-size: .95rem;
+  line-height: 1.65;
+}
+
+.hero-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem 1.3rem;
+  margin-top: 1.4rem;
+  font-size: .72rem;
+}
+
+.hero-checks li,
+.closing-actions li {
+  display: flex;
+  align-items: center;
+  gap: .42rem;
+}
+
+.hero-checks svg,
+.closing-actions li svg {
+  border-radius: 50%;
+  padding: 2px;
+  color: white;
+  background: #9489b2;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.65rem;
+}
+
+.handwritten {
+  font-family: var(--font-script);
+  color: var(--color-ink-700);
+  line-height: 1.05;
+}
+
+.handwritten span {
+  display: block;
+  width: 54px;
+  height: 9px;
+  margin-top: .35rem;
+  margin-left: auto;
+  border-top: 2px solid var(--lavender);
+  border-radius: 50%;
+  transform: rotate(-7deg);
+}
+
+.hero-note {
+  position: absolute;
+  z-index: 3;
+  top: 58px;
+  right: 0;
+  width: 150px;
+  transform: rotate(-5deg);
+  font-size: 1.7rem;
+  text-align: center;
+}
+
+.hero-side-note {
+  position: absolute;
+  right: 0;
+  bottom: 26px;
+  font-size: .68rem;
+  font-weight: 600;
+  line-height: 1.55;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.promise-band {
+  border-block: 1px solid var(--color-edge-subtle);
+  background: var(--warm);
+}
+
+.promise-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding-block: 20px;
+}
+
+.promise-grid li,
+.benefits-grid li {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  min-width: 0;
+}
+
+.promise-grid li:not(:first-child) {
+  padding-left: 2.4rem;
+  border-left: 1px solid var(--color-edge);
+}
+
+.round-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-ink-900);
+  background: #f1e8e1;
+}
+
+.promise-grid strong,
+.benefits-grid strong {
+  display: block;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--color-ink-900);
+}
+
+.promise-grid small,
+.benefits-grid small {
+  display: block;
+  margin-top: .12rem;
+  font-size: .69rem;
+  line-height: 1.45;
+  color: var(--color-ink-500);
+}
+
+.section-link {
+  padding-bottom: .18rem;
+  border-bottom: 1px solid #bdb4cc;
+  color: #6d618f;
+  font-size: .72rem;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1.3rem;
+  margin-top: 1.8rem;
+}
+
+.steps-grid > li {
+  position: relative;
+  min-height: 225px;
+  padding: 15px;
+  border-radius: 5px;
+  background: linear-gradient(155deg, #fbf8f5 0%, #f7f1ec 100%);
+}
+
+.step-number {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  margin-bottom: .8rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #eee5df;
+  color: var(--color-ink-700);
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.steps-grid h3 {
+  margin-top: .8rem;
+  font-family: var(--font-body);
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+.steps-grid p {
+  margin-top: .45rem;
+  font-size: .69rem;
+  line-height: 1.55;
+  color: var(--color-ink-500);
+}
+
+.step-arrow {
+  position: absolute;
+  top: 50%;
+  right: -1.2rem;
+  color: var(--color-ink-400);
+}
+
+.tiers-band {
+  background: linear-gradient(90deg, #fbf8f5 0%, #fff 49%, #fbf7f3 100%);
+}
+
+.tiers-inner {
+  position: relative;
+}
+
+.tiers-note {
+  transform: rotate(-4deg);
+  padding-right: 1rem;
+  font-size: 1.5rem;
+  text-align: right;
+}
+
+.tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.6rem;
+}
+
+.tier-card {
+  display: flex;
+  min-height: 260px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-edge-subtle);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .92);
+}
+
+.tier-card.featured {
+  border-color: #8877b2;
+  box-shadow: 0 8px 24px rgba(68, 53, 96, .08);
+}
+
+.popular {
+  padding: .28rem 1rem;
+  color: white;
+  background: linear-gradient(90deg, #8f82b3, #77669f);
+  font-size: .63rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.tier-body {
+  flex: 1;
+  padding: 22px 24px 18px;
+}
+
+.tier-title-row {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+}
+
+.tier-icon {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f3eae4;
+}
+
+.featured .tier-icon {
+  background: var(--lavender-soft);
+}
+
+.tier-title-row h3 {
+  font-family: var(--font-body);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.tier-label {
+  margin-left: auto;
+  padding: .28rem .85rem;
+  border-radius: 999px;
+  background: #eee6e0;
+  color: var(--color-ink-500);
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.featured .tier-label {
+  background: #e8e2f2;
+  color: #665785;
+}
+
+.tier-threshold {
+  margin-top: .8rem;
+  padding-left: 4.05rem;
+  color: var(--color-ink-900);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.tier-threshold strong {
+  display: block;
+  font-size: .88rem;
+  font-weight: 600;
+}
+
+.tier-description {
+  max-width: 26ch;
+  margin: .7rem auto 0;
+  color: var(--color-ink-500);
+  font-size: .72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.tier-footer {
+  padding: .7rem 1rem;
+  color: #6d5d93;
+  background: #f1ece8;
+  font-size: .76rem;
+  text-align: center;
+}
+
+.featured .tier-footer {
+  background: #eae5f4;
+}
+
+.benefits-section {
+  padding-bottom: 28px;
+}
+
+.section-heading-row.compact {
+  align-items: center;
+}
+
+.section-heading-row.compact > p {
+  margin: 0;
+  font-size: .74rem;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 1.5rem;
+}
+
+.benefits-grid li {
+  padding-right: 1.25rem;
+}
+
+.benefits-grid li:not(:first-child) {
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--color-edge);
+}
+
+.benefits-grid .round-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.faq-section {
+  display: grid;
+  grid-template-columns: .72fr 1.55fr;
+  gap: 3rem;
+  margin-bottom: 0;
+  padding: 26px;
+  border-radius: 7px;
+  background: linear-gradient(110deg, #fbf8f5, #f8f3ef);
+}
+
+.faq-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.faq-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 44px;
+  margin-top: auto;
+  padding: 0 1.25rem;
+  border: 1px solid var(--color-ink-700);
+  border-radius: 4px;
+  color: var(--color-ink-900);
+  font-size: .75rem;
+  font-weight: 500;
+}
+
+.faq-list {
+  display: grid;
+  gap: .45rem;
+}
+
+.faq-list article {
+  border: 1px solid var(--color-edge-subtle);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .94);
+}
+
+.faq-list button {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .55rem 1rem;
+  color: var(--color-ink-900);
+  font-size: .73rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.faq-list article > p {
+  padding: 0 1rem .65rem;
+  color: var(--color-ink-500);
+  font-size: .68rem;
+}
+
+.closing-cta {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(280px, 37%) 1fr;
+  min-height: 220px;
+  margin-top: 38px;
+  overflow: hidden;
+  border-block: 1px solid var(--color-edge-subtle);
+  background: #fbf7f3;
+}
+
+.closing-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.closing-copy {
+  align-self: center;
+  max-width: 710px;
+  padding: 34px 48px;
+}
+
+.closing-actions {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  margin-top: 1.1rem;
+}
+
+.closing-actions ul {
+  padding-left: 2.5rem;
+  border-left: 1px solid var(--color-edge);
+  font-size: .69rem;
+  line-height: 1.8;
+}
+
+.closing-note {
+  position: absolute;
+  right: 5%;
+  top: 54px;
+  transform: rotate(-4deg);
+  font-size: 1.35rem;
+  text-align: right;
+}
+
+@media (max-width: 1100px) {
+  .hero-copy { width: 53%; }
+  .hero-note,
+  .hero-side-note,
+  .closing-note { display: none; }
+  .closing-copy { padding-right: 32px; }
+}
+
+@media (max-width: 900px) {
+  .section-space { padding-block: 40px; }
+  .hero-section,
+  .hero-content { min-height: 460px; }
+  .hero-copy { width: 54%; padding-top: 48px; }
+  .hero-copy h1 { font-size: 3.2rem; }
+  .steps-grid { grid-template-columns: repeat(3, 1fr); }
+  .steps-grid > li { min-height: 205px; }
+  .step-arrow { display: none; }
+  .tiers-grid { gap: .8rem; }
+  .tier-body { padding-inline: 16px; }
+  .tier-threshold { padding-left: 0; text-align: center; }
+  .benefits-grid { grid-template-columns: repeat(2, 1fr); gap: 1.4rem 0; }
+  .benefits-grid li:nth-child(3) { padding-left: 0; border-left: 0; }
+  .closing-actions { gap: 1.2rem; }
+  .closing-actions ul { padding-left: 1.2rem; }
+}
+
+@media (max-width: 767px) {
+  .wholesale-container { width: min(100% - 2rem, 1280px); }
+  .section-heading-row { align-items: flex-start; }
+  .section-link,
+  .tiers-note,
+  .section-heading-row.compact > p { display: none; }
+  .hero-section { padding-top: 280px; }
+  .hero-section,
+  .hero-content { min-height: 0; }
+  .hero-photo { height: 280px; background: #f9f4ee; }
+  .hero-photo img { object-position: 67% center; }
+  .hero-content { width: 100%; }
+  .hero-copy { width: min(100% - 2rem, 34rem); margin-inline: auto; padding-block: 36px 42px; }
+  .hero-copy h1 { font-size: clamp(2.8rem, 14vw, 4rem); }
+  .hero-intro { font-size: .9rem; }
+  .hero-checks { display: grid; }
+  .hero-actions { display: grid; }
+  .hero-actions > * { width: 100%; }
+  .promise-grid { grid-template-columns: 1fr; padding-block: 8px; }
+  .promise-grid li { padding-block: 12px; }
+  .promise-grid li:not(:first-child) { padding-left: 0; border-top: 1px solid var(--color-edge); border-left: 0; }
+  .steps-grid { grid-template-columns: repeat(2, 1fr); gap: .75rem; }
+  .steps-grid > li { min-height: 220px; }
+  .tiers-grid { grid-template-columns: 1fr; }
+  .tier-card { min-height: 0; }
+  .tier-description { max-width: 34ch; }
+  .benefits-grid { grid-template-columns: 1fr; }
+  .benefits-grid li,
+  .benefits-grid li:not(:first-child) { padding: 0; border: 0; }
+  .faq-section { grid-template-columns: 1fr; gap: 1.5rem; padding: 22px; }
+  .faq-link { margin-top: 1.2rem; }
+  .closing-cta { grid-template-columns: 1fr; }
+  .closing-photo { height: 220px; }
+  .closing-copy { padding: 32px 1rem 38px; }
+  .closing-actions { align-items: stretch; flex-direction: column; }
+  .closing-actions ul { padding-top: 1rem; padding-left: 0; border-top: 1px solid var(--color-edge); border-left: 0; }
+}
+
+@media (max-width: 420px) {
+  .steps-grid { grid-template-columns: 1fr; }
+  .steps-grid > li { min-height: 0; }
+  .tier-title-row { flex-wrap: wrap; }
+}
+</style>

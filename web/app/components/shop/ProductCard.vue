@@ -15,7 +15,12 @@ import type { ProductCard } from '~/composables/useApi'
  * the lock a real <button> — nesting one inside an <a> is invalid HTML and
  * breaks hydration, which is why the lock used to be inert here.
  */
-defineProps<{ product: ProductCard }>()
+const props = withDefaults(defineProps<{
+  product: ProductCard
+  compact?: boolean
+}>(), {
+  compact: false,
+})
 
 /**
  * TODO(wishlist): drawn on the tile because the redesign draws it there, and
@@ -30,7 +35,10 @@ const wishlisted = ref(false)
   <div
     class="group relative flex flex-col overflow-hidden rounded-md border border-edge-subtle bg-white transition-colors hover:border-edge"
   >
-    <div class="relative aspect-4/5 overflow-hidden bg-surface-sunken">
+    <div
+      class="relative overflow-hidden bg-surface-sunken"
+      :class="props.compact ? 'aspect-[1.4/1]' : 'aspect-4/5'"
+    >
       <img
         v-if="product.image"
         :src="product.image.path"
@@ -65,7 +73,7 @@ const wishlisted = ref(false)
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col gap-1.5 p-3">
+    <div class="flex flex-1 flex-col gap-1.5" :class="props.compact ? 'p-2.5' : 'p-3'">
       <!-- Colour swatches, capped with a +N overflow. Above the name, as drawn:
            colour is what a shopper scans a scrubs grid for. -->
       <div v-if="product.colors?.length" class="flex items-center gap-1">

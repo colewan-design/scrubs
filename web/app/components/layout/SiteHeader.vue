@@ -28,7 +28,7 @@ const { minOrder, freeShipping } = await useWholesaleSummary()
 const nav = [
   { label: 'Women', to: '/women' },
   { label: 'Men', to: '/men' },
-  { label: 'Wholesale / How It Works', to: '/wholesale' },
+  { label: 'Wholesale', to: '/wholesale' },
   { label: 'About', to: '/about' },
   { label: 'Contact', to: '/contact' },
 ]
@@ -51,9 +51,9 @@ const firstName = computed(() => auth.user?.name?.split(' ')[0] ?? 'Account')
     <!-- 1. Announcement bar. Two clusters that collapse to one centred line on
          a phone, where only the offers half survives — the positioning line is
          the first thing that can go. -->
-    <div class="border-b border-edge-subtle bg-surface-warm text-[12px] text-ink-700">
+    <div class="border-b border-edge-subtle bg-[#fbf5ef] text-[10px] text-ink-700">
       <div
-        class="container-wide flex h-9 items-center justify-center gap-x-6 md:justify-between"
+        class="container-content flex h-7 items-center justify-center gap-x-6 md:justify-between"
       >
         <p class="flex items-center gap-x-2 truncate">
           <Tag :size="13" class="hidden shrink-0 sm:block" aria-hidden="true" />
@@ -80,7 +80,7 @@ const firstName = computed(() => auth.user?.name?.split(' ')[0] ?? 'Account')
 
     <div class="sticky top-0 z-40 border-b border-edge-subtle bg-white">
       <!-- 2. Main bar -->
-      <div class="container-wide flex h-16 items-center gap-2 md:h-[76px] md:gap-4">
+      <div class="container-content flex h-14 items-center gap-2 md:h-[58px] md:gap-4">
         <!-- Icon-only controls are padded out to 44px (WCAG 2.5.5) and pulled
              back with negative margin so the row still reads as tight. -->
         <button
@@ -97,7 +97,7 @@ const firstName = computed(() => auth.user?.name?.split(' ')[0] ?? 'Account')
         </NuxtLink>
 
         <form
-          class="hidden max-w-[420px] flex-1 md:block xl:max-w-[520px]"
+          class="hidden max-w-[390px] flex-1 md:block xl:max-w-[430px]"
           role="search"
           @submit.prevent="submitSearch"
         >
@@ -112,7 +112,7 @@ const firstName = computed(() => auth.user?.name?.split(' ')[0] ?? 'Account')
               type="search"
               aria-label="Search products"
               placeholder="Search scrubs, colours, brands and more..."
-              class="h-11 w-full rounded-full border border-edge bg-white pr-4 pl-11 text-sm text-ink-900 placeholder:text-ink-400 focus:border-edge-strong focus:outline-none"
+              class="h-9 w-full rounded-full border border-edge bg-white pr-4 pl-10 text-[12px] text-ink-900 placeholder:text-ink-400 focus:border-edge-strong focus:outline-none"
             >
           </div>
         </form>
@@ -121,24 +121,24 @@ const firstName = computed(() => auth.user?.name?.split(' ')[0] ?? 'Account')
              long label ("Wholesale / How It Works") squeezes the gaps rather
              than pushing the cart off the end. -->
         <nav class="hidden min-w-0 flex-1 lg:block" aria-label="Primary">
-          <ul class="flex items-center justify-end gap-5 xl:gap-7">
+          <ul class="flex items-center justify-end gap-5 xl:gap-6">
             <li v-for="item in nav" :key="item.to">
               <NuxtLink
                 :to="item.to"
-                class="text-[13px] font-medium whitespace-nowrap text-ink-700 hover:text-ink-900"
+                class="text-[11px] font-medium whitespace-nowrap text-ink-700 hover:text-ink-900"
                 active-class="text-ink-900 underline underline-offset-[6px]"
               >{{ item.label }}</NuxtLink>
             </li>
           </ul>
         </nav>
 
-        <div class="ml-auto flex items-center gap-1 sm:gap-4 lg:ml-6">
+        <div class="ml-auto flex items-center gap-1 sm:gap-4 lg:ml-4">
           <NuxtLink
             :to="auth.isAuthenticated ? '/account' : '/account/login'"
-            class="hidden items-center gap-2 text-[13px] text-ink-700 hover:text-ink-900 sm:flex"
+            class="hidden items-center gap-2 text-[11px] text-ink-700 hover:text-ink-900 sm:flex"
           >
             <User :size="19" aria-hidden="true" />
-            {{ auth.isAuthenticated ? firstName : 'Sign In' }}
+            {{ auth.isAuthenticated ? firstName : 'Account' }}
           </NuxtLink>
 
           <!-- No account icon below sm. The wordmark plus three 44px targets
@@ -147,16 +147,14 @@ const firstName = computed(() => auth.user?.name?.split(' ')[0] ?? 'Account')
                that has to stay a single tap from every page. -->
           <NuxtLink
             to="/cart"
-            class="-mr-2.5 grid size-11 place-items-center sm:mr-0 sm:size-auto"
+            class="-mr-2.5 flex size-11 items-center justify-center gap-2 text-[11px] text-ink-900 sm:mr-0 sm:size-auto"
             aria-label="Cart"
           >
             <span class="relative grid place-items-center">
               <ShoppingBag :size="20" />
-              <span
-                v-if="cart.itemCount > 0"
-                class="tabular absolute -top-1.5 -right-2 flex size-[18px] items-center justify-center rounded-full bg-ink-900 text-[10px] font-medium text-white"
-              >{{ cart.itemCount }}</span>
             </span>
+            <span class="hidden sm:inline">Cart</span>
+            <span class="tabular hidden size-[18px] items-center justify-center rounded-full bg-[#316f98] text-[10px] font-medium text-white sm:flex">{{ cart.itemCount }}</span>
           </NuxtLink>
         </div>
       </div>
