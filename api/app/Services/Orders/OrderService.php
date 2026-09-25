@@ -577,6 +577,18 @@ class OrderService
         ]);
     }
 
+    /**
+     * Attach a note to the order's history without moving it anywhere.
+     *
+     * For things an administrator must know that are not status changes — a
+     * PayPal payment waiting to clear being the case that wanted it, since the
+     * order looks abandoned while the money is still on its way.
+     */
+    public function note(Order $order, string $note, ?User $actor = null): void
+    {
+        $this->recordHistory($order, $order->status, $order->status, $note, $actor);
+    }
+
     protected function recordHistory(
         Order $order,
         ?string $from,

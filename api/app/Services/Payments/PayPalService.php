@@ -192,6 +192,19 @@ class PayPalService
         $capture = $this->completedCapture($body);
 
         if (! $capture) {
+            // An eCheck, or a capture held for review: PayPal has taken the
+            // payment on but has not cleared it. Saying no money was taken here
+            // would be false, and would invite a second payment for an order
+            // that is already being paid for, so it is recorded and stated
+            // plainly instead. The amount is still checked — an eCheck for the
+            // wrong figure is no more acceptable than a cleared one.
+            if ($pending = $this->pendingCapture($body)) {
+                $this->assertAmountMatches($order, $pending);
+                $this->recordPendingCapture($order, $payment, $paypalOrderId, $pending, $body);
+
+                throw new PayPalPaymentPending($this->pendingMessage($pending));
+            }
+
             throw new RuntimeException(
                 'PayPal did not complete that payment. No money has been taken — please try again.'
             );
@@ -215,21 +228,9 @@ class PayPalService
      */
     public function confirmFromWebhook(array $resource): ?Order
     {
-        $orderNumber = $resource['custom_id'] ?? $resource['invoice_id'] ?? null;
-
-        if (! is_string($orderNumber) || $orderNumber === '') {
-            Log::warning('PayPal webhook capture carried no order reference.', [
-                'capture_id' => $resource['id'] ?? null,
-            ]);
-
-            return null;
-        }
-
-        $order = Order::where('order_number', $orderNumber)->first();
+        $order = $this->orderFromWebhook($resource);
 
         if (! $order) {
-            Log::warning('PayPal webhook named an unknown order.', ['order_number' => $orderNumber]);
-
             return null;
         }
 
@@ -268,6 +269,84 @@ class PayPalService
         return $this->recordCapture($order, $payment, (string) ($resource['supplementary_data']['related_ids']['order_id']
             ?? $payment->raw_response['paypal_order_id']
             ?? ''), $capture, ['webhook' => true] + $resource);
+    }
+
+    /**
+     * Record an uncleared capture from a verified `PAYMENT.CAPTURE.PENDING`.
+     *
+     * The order is NOT confirmed — nothing has settled. This exists so that an
+     * eCheck we never saw in the browser (the customer closed the tab) is still
+     * visible as money on its way rather than an abandoned order whose stock is
+     * there for the taking. The matching COMPLETED event confirms it later.
+     *
+     * @param  array<string, mixed>  $resource  The event's `resource` object.
+     */
+    public function recordPendingFromWebhook(array $resource): ?Order
+    {
+        $order = $this->orderFromWebhook($resource);
+
+        if (! $order || $order->payment_status === Order::PAYMENT_PAID) {
+            return $order;
+        }
+
+        if (($resource['status'] ?? null) !== 'PENDING') {
+            return null;
+        }
+
+        $capture = [
+            'id' => $resource['id'] ?? null,
+            'status' => 'PENDING',
+            'amount' => $resource['amount'] ?? [],
+            'status_details' => $resource['status_details'] ?? [],
+        ];
+
+        try {
+            $this->assertPayable($order);
+            $this->assertAmountMatches($order, $capture);
+        } catch (RuntimeException $e) {
+            // Same reasoning as the COMPLETED path: an amount we do not
+            // recognise is a human's problem, not something to write down as
+            // though it were expected.
+            Log::error('PayPal pending capture did not match its order.', [
+                'order_number' => $order->order_number,
+                'capture_id' => $capture['id'],
+                'reason' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        $payment = $this->paymentFor($order);
+
+        $this->recordPendingCapture($order, $payment, (string) ($resource['supplementary_data']['related_ids']['order_id']
+            ?? $payment->raw_response['paypal_order_id']
+            ?? ''), $capture, $resource);
+
+        return $order;
+    }
+
+    /** The order a webhook resource names, or null with the reason logged. */
+    protected function orderFromWebhook(array $resource): ?Order
+    {
+        $orderNumber = $resource['custom_id'] ?? $resource['invoice_id'] ?? null;
+
+        if (! is_string($orderNumber) || $orderNumber === '') {
+            Log::warning('PayPal webhook capture carried no order reference.', [
+                'capture_id' => $resource['id'] ?? null,
+            ]);
+
+            return null;
+        }
+
+        $order = Order::where('order_number', $orderNumber)->first();
+
+        if (! $order) {
+            Log::warning('PayPal webhook named an unknown order.', ['order_number' => $orderNumber]);
+
+            return null;
+        }
+
+        return $order;
     }
 
     /**
@@ -401,6 +480,106 @@ class PayPalService
         }
 
         return null;
+    }
+
+    /**
+     * The PENDING capture out of a v2 order body, if there is one.
+     *
+     * Deliberately not gated on the order's own status the way completedCapture
+     * is: PayPal reports an eCheck order as COMPLETED while the capture inside
+     * it sits at PENDING, and it is the capture that says whether the money has
+     * actually arrived.
+     */
+    protected function pendingCapture(array $body): ?array
+    {
+        foreach ($body['purchase_units'] ?? [] as $unit) {
+            foreach ($unit['payments']['captures'] ?? [] as $capture) {
+                if (($capture['status'] ?? null) === 'PENDING') {
+                    return $capture;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * What to tell a customer whose payment has not cleared.
+     *
+     * Every branch has to carry the same two facts — the money is on its way,
+     * and paying again is the wrong move — because the customer is staring at a
+     * checkout page that did not confirm.
+     */
+    protected function pendingMessage(array $capture): string
+    {
+        $reason = $capture['status_details']['reason'] ?? null;
+
+        return match ($reason) {
+            'ECHECK' => 'PayPal accepted your payment as an eCheque, which takes a few business days to '
+                .'clear. Your order is saved and we will confirm it as soon as the money arrives — '
+                .'please do not pay for it again.',
+            'PENDING_REVIEW', 'RISK_REVIEW' => 'PayPal is reviewing your payment before releasing it. Your '
+                .'order is saved and we will confirm it as soon as PayPal clears the payment — please do '
+                .'not pay for it again.',
+            default => 'PayPal has taken your payment but has not cleared it yet. Your order is saved and '
+                .'we will confirm it as soon as the money arrives — please do not pay for it again.',
+        };
+    }
+
+    /**
+     * Write an uncleared capture down without marking the order paid.
+     *
+     * The payment row keeps its pending status — nothing has settled — but it
+     * gains the capture id, so the clearing capture is recognisable when it
+     * arrives and an administrator can see the order is not merely abandoned.
+     * Idempotent: the browser and the PENDING webhook both land here.
+     */
+    protected function recordPendingCapture(
+        Order $order,
+        Payment $payment,
+        string $paypalOrderId,
+        array $capture,
+        array $body,
+    ): void {
+        $captureId = $capture['id'] ?? null;
+        $alreadyKnown = ($payment->raw_response['capture_id'] ?? null) === $captureId;
+
+        $payment->update([
+            'provider' => Payment::PROVIDER_PAYPAL,
+            'method' => Payment::PROVIDER_PAYPAL,
+            'status' => Payment::STATUS_PENDING,
+            'provider_reference' => $captureId ?: $payment->provider_reference,
+            'raw_response' => array_merge($payment->raw_response ?? [], [
+                'mode' => $this->client->mode(),
+                'paypal_order_id' => $paypalOrderId ?: ($payment->raw_response['paypal_order_id'] ?? null),
+                'capture_id' => $captureId,
+                'capture_status' => 'PENDING',
+                'pending_reason' => $capture['status_details']['reason'] ?? null,
+                'captured_amount' => $capture['amount'] ?? null,
+                'payer' => $body['payer'] ?? ($payment->raw_response['payer'] ?? null),
+                'pending_since' => $payment->raw_response['pending_since'] ?? now()->toIso8601String(),
+            ]),
+        ]);
+
+        if ($alreadyKnown) {
+            return;
+        }
+
+        // Visible in the admin panel on purpose. Without it the order looks like
+        // any other unpaid one, and the stock it is holding is exactly what an
+        // administrator would release — while the money is still on its way.
+        $this->orders->note($order, sprintf(
+            'PayPal payment awaiting clearance (%s). Capture %s is PENDING — do not cancel or restock '
+            .'until PayPal reports it completed or denied.',
+            $capture['status_details']['reason'] ?? 'no reason given',
+            $captureId ?: 'unknown',
+        ));
+
+        Log::warning('PayPal capture is pending rather than completed.', [
+            'order_number' => $order->order_number,
+            'capture_id' => $captureId,
+            'reason' => $capture['status_details']['reason'] ?? null,
+        ]);
     }
 
     /**

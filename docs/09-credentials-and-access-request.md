@@ -31,7 +31,7 @@ nothing has to be transferred back to you at handover.
 |---|---|---|---|
 | 2 | Google app password — order emails | Week 1–2 | **Launch blocker** — no emails can send |
 | 3 | Google OAuth client ID + secret — sign-in | Week 3 | Not blocking — button stays hidden |
-| 4 | ~~Payment gateway keys~~ — PayPal received 2026-09-25 | Done | Rotate the secret + send the webhook ID |
+| 4 | ~~Payment gateway keys~~ — PayPal received 2026-09-25, webhook ID received 2026-09-25 | Done | Rotate the secret |
 | 5 | Domain / DNS access | Week 1 | **Launch blocker** — email lands in spam |
 | 6 | Hosting account | Week 2 | **Launch blocker** — nothing can be deployed |
 | 7 | Stallion Express API key | Week 5 | Not blocking — falls back to fixed rates |
@@ -104,6 +104,21 @@ available alongside it for customers who prefer to pay by transfer.
 "Accept PayPal at checkout"**. That section also states which PayPal account the site is connected to,
 so you can confirm it before going live.
 
+### The webhook — received 2026-09-25
+
+The Webhook ID you sent (`41N89698JR803294M`) is now configured, so PayPal notifies us directly when a
+capture completes. A payment no longer depends on the customer's browser coming back from PayPal: if
+they close the tab after paying, the webhook still confirms the order.
+
+Two things about it are worth confirming on your side, because both fail quietly rather than loudly:
+
+- **It must be the webhook from the same (live) app** as the client ID and secret. A webhook ID
+  created under the sandbox app is rejected when we check it against the live API, and the symptom is
+  simply that deliveries stop being accepted.
+- **The subscribed event types** should be `PAYMENT.CAPTURE.COMPLETED` plus `DENIED`, `REVERSED` and
+  `REFUNDED`, and the URL should be `https://bulkscrubsdirect.ca/api/v1/webhooks/paypal`. The
+  dashboard shows both on the webhook's own page.
+
 ### Two things still outstanding
 
 **1. Rotate the secret — please do this first.** The client secret was sent to me as plain text, which
@@ -113,21 +128,11 @@ PayPal developer dashboard: **Apps & Credentials → your app → Secrets → Ge
 remove the old one and send me the replacement by the method in §1 of this document. Rotating it takes
 about a minute and invalidates the copy that was exposed.
 
-**2. The webhook.** Without it, a payment is only confirmed if the customer's browser comes back from
-PayPal. If they close the tab at the wrong moment, the money is taken but the order sits in Pending
-Payment until someone confirms it by hand. In the dashboard: **Apps & Credentials → your app →
-Webhooks → Add webhook**, with:
-
-| Field | Value |
-|---|---|
-| Webhook URL | `https://bulkscrubsdirect.ca/api/v1/webhooks/paypal` |
-| Event types | `PAYMENT.CAPTURE.COMPLETED`, plus `DENIED`, `REVERSED` and `REFUNDED` |
-
-Then send me the **Webhook ID** it shows afterwards (looks like `WH-...`).
-
-**Also worth confirming:** whether you want sandbox credentials as well. The pair you sent is for the
-**live** account, so there is currently no way to test a full payment without moving real money.
-Sandbox credentials from the same dashboard would let the flow be exercised end to end safely.
+**2. Sandbox credentials.** The pair you sent is for the **live** account, so there is currently no way
+to test a full payment without moving real money. A sandbox client ID and secret from the same
+dashboard (**Apps & Credentials → Sandbox**) would let the flow be exercised end to end safely. If you
+create a sandbox app, its webhook ID would be useful too — it belongs to that environment and cannot
+be used against live.
 
 ### Cards — still open
 
@@ -136,7 +141,7 @@ our own checkout page. If you want customers to be able to pay by card without a
 is a separate integration (Stripe, or PayPal's Advanced Card Processing) with its own merchant
 approval — worth deciding on, but it is not blocking launch now that PayPal works.
 
-☐ Secret rotated and replacement sent ☐ Webhook created and ID sent ☐ Sandbox credentials sent
+☐ Secret rotated and replacement sent ☑ Webhook created and ID sent ☐ Sandbox credentials sent
 ☐ Decision on a separate card processor
 
 ---
@@ -230,7 +235,8 @@ Tick as sent. Nothing needs to arrive in order.
 ☐ **2** Sending address + app password + Workspace/Postmark/Gmail decision
 ☐ **3** Google OAuth Client ID + Client secret
 ☑ **4** PayPal client ID + secret — received 2026-09-25, integrated
-☐ **4** PayPal secret rotated (it was sent in plain text) + webhook ID + sandbox credentials
+☑ **4** PayPal webhook ID — received 2026-09-25, configured
+☐ **4** PayPal secret rotated (it was sent in plain text) + sandbox credentials
 ☐ **5** Domain registrar + access arrangement
 ☐ **6** Hosting provider + team access
 ☐ **7** Stallion Express API key + service selection

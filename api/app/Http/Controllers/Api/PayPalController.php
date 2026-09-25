@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\Payments\PayPalClient;
+use App\Services\Payments\PayPalPaymentPending;
 use App\Services\Payments\PayPalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,19 +64,29 @@ class PayPalController extends Controller
             'paypal_order_id' => ['required', 'string', 'max:64'],
         ]);
 
+        $pending = null;
+
         try {
             $order = $this->paypal->capture($order, $data['paypal_order_id']);
+        } catch (PayPalPaymentPending $e) {
+            // 202, not 422: the payment has not failed, it has not cleared. A
+            // 422 here would put this in front of the customer as an error and
+            // invite them to pay a second time for money already on its way.
+            $pending = $e->getMessage();
+            $order->refresh();
         } catch (RuntimeException $e) {
             // 422, not 500: every message that reaches here is something the
             // customer can act on, and the checkout page shows it as-is.
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json([
+        return response()->json(array_filter([
             'order' => OrderResource::make($order->load([
                 'items.variant.product.images', 'taxes', 'addresses', 'statusHistory',
             ]))->toArray($request),
-        ]);
+            'payment_pending' => (bool) $pending,
+            'message' => $pending,
+        ]), $pending ? 202 : 200);
     }
 
     /**
@@ -123,6 +134,12 @@ class PayPalController extends Controller
 
         match ($type) {
             'PAYMENT.CAPTURE.COMPLETED' => $this->paypal->confirmFromWebhook($resource),
+
+            // Recorded, but the order stays unpaid: an eCheck or a held capture
+            // is money on its way, not money arrived. Worth writing down anyway,
+            // because otherwise the order is indistinguishable from an abandoned
+            // one and its reserved stock is the obvious thing to release.
+            'PAYMENT.CAPTURE.PENDING' => $this->paypal->recordPendingFromWebhook($resource),
 
             // Recorded rather than acted on. A capture we never completed cannot
             // have moved our order, and a denial after the fact needs a human to

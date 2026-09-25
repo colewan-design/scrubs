@@ -287,6 +287,14 @@ const placedOrder = ref<Order | null>(null)
 /** Shown when an order exists but is not yet paid, so it is never lost. */
 const pendingNotice = ref<Order | null>(null)
 
+/**
+ * A payment PayPal has taken but not cleared (an eCheque, or a capture held for
+ * review). Kept apart from both generalError and pendingNotice on purpose:
+ * this is neither a failure to retry nor an order still waiting to be paid for,
+ * and both of those invite exactly the second payment that must not happen.
+ */
+const paymentClearing = ref<{ order: Order; message: string } | null>(null)
+
 /** Everything the API needs to place the order, independent of how it is paid. */
 function orderPayload() {
   return {
@@ -397,12 +405,31 @@ async function capturePayPal(paypalOrderId: string) {
   generalError.value = ''
 
   try {
-    const response = await api.post<{ order: Order }>(
+    const response = await api.post<{
+      order: Order
+      payment_pending?: boolean
+      message?: string
+    }>(
       `/orders/${order.order_number}/paypal/capture`,
       { paypal_order_id: paypalOrderId, email: order.email },
     )
 
     await cart.refresh()
+
+    // 202: the money is on its way but has not arrived, so there is no
+    // confirmation to navigate to yet. The customer is told what happened and
+    // the buttons are withdrawn rather than left inviting another attempt.
+    if (response.payment_pending) {
+      paymentClearing.value = {
+        order: response.order,
+        message: response.message
+          || 'PayPal has taken your payment but has not cleared it yet. Your order is saved and we will '
+            + 'confirm it as soon as the money arrives — please do not pay for it again.',
+      }
+
+      return
+    }
+
     await navigateTo(confirmationPath(response.order))
   } catch (e: any) {
     // The order stands whatever happened to the payment, so the customer is
@@ -1024,11 +1051,28 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
             </div>
           </div>
 
+          <!-- A payment PayPal is still clearing. Deliberately above the
+               Pending Payment notice and mutually exclusive with it: that one
+               offers a way to pay now, which is the one thing not to do here. -->
+          <p
+            v-if="paymentClearing"
+            class="mt-4 rounded-sm border border-edge bg-surface-warm px-4 py-3 text-[13px] leading-relaxed text-ink-700"
+            role="status"
+          >
+            {{ paymentClearing.message }}
+            <NuxtLink
+              :to="confirmationPath(paymentClearing.order)"
+              class="font-medium text-ink-900 underline underline-offset-4"
+            >
+              {{ paymentClearing.order.order_number }}
+            </NuxtLink>
+          </p>
+
           <!-- An order that exists but is not yet paid. Shown rather than
                swallowed: the customer's stock is reserved against it, and they
                need a way back to it if anything went wrong. -->
           <p
-            v-if="pendingNotice"
+            v-if="pendingNotice && !paymentClearing"
             class="mt-4 rounded-sm border border-edge bg-surface-warm px-4 py-3 text-[13px] leading-relaxed text-ink-700"
           >
             Your order
@@ -1039,8 +1083,10 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
           </p>
 
           <!-- Method choice, but only when there is a choice to make. A single
-               radio is just a heavier way of stating a fact. -->
-          <fieldset v-if="paypalConfig" class="mt-4">
+               radio is just a heavier way of stating a fact. Hidden while a
+               payment is clearing: every option here is a way to pay, and the
+               money for this order is already on its way. -->
+          <fieldset v-if="paypalConfig && !paymentClearing" class="mt-4">
             <legend class="sr-only">Payment method</legend>
 
             <div class="space-y-2">
@@ -1069,7 +1115,7 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
           </fieldset>
 
           <!-- ---------------------------------------------------- PayPal -->
-          <div v-if="paymentMethod === 'paypal' && paypalConfig" class="mt-4">
+          <div v-if="paymentMethod === 'paypal' && paypalConfig && !paymentClearing" class="mt-4">
             <p
               v-if="generalError"
               class="mb-3 rounded-sm border border-status-error/30 bg-status-error/5 px-3.5 py-2.5 text-[13px] leading-relaxed text-status-error"
@@ -1104,7 +1150,10 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
           </div>
 
           <!-- -------------------------------------------------- offline -->
-          <template v-else>
+          <!-- v-else-if, not v-else: when the PayPal branch above is hidden
+               because a payment is clearing, a plain v-else would fall through
+               to this one and offer Place Order for an order being paid for. -->
+          <template v-else-if="!paymentClearing">
             <div class="mt-4 rounded-sm border border-edge bg-surface-sunken p-4">
               <p class="text-[14px] font-medium text-ink-900">
                 {{ quote?.etransfer ? 'Interac e-Transfer' : 'Payment on confirmation' }}

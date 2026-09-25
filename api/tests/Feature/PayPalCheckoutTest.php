@@ -162,6 +162,34 @@ class PayPalCheckoutTest extends TestCase
         ];
     }
 
+    /**
+     * A PENDING capture body -- an eCheque.
+     *
+     * Note the order status: PayPal reports the ORDER as COMPLETED while the
+     * capture inside it sits at PENDING. That combination is the whole trap, so
+     * the fixture reproduces it exactly rather than a tidier version.
+     */
+    protected function pendingCaptureBody(
+        string $value,
+        string $currency = 'CAD',
+        string $captureId = 'CAP-ECHECK',
+        string $reason = 'ECHECK',
+    ): array {
+        return [
+            'id' => 'PP-ORDER-1',
+            'status' => 'COMPLETED',
+            'purchase_units' => [[
+                'payments' => ['captures' => [[
+                    'id' => $captureId,
+                    'status' => 'PENDING',
+                    'status_details' => ['reason' => $reason],
+                    'amount' => ['currency_code' => $currency, 'value' => $value],
+                ]]],
+            ]],
+            'payer' => ['email_address' => 'buyer@example.test'],
+        ];
+    }
+
     protected function decimal(int $cents): string
     {
         return number_format($cents / 100, 2, '.', '');
@@ -610,5 +638,174 @@ class PayPalCheckoutTest extends TestCase
         ])->assertOk();
 
         Http::assertSentCount(3); // one token, two order creations
+    }
+
+    // ------------------------------------------------------- uncleared money
+
+    /**
+     * An eCheque. The money is on its way but has not arrived, and the thing
+     * that must not happen is the customer being told nothing was taken -- that
+     * invites a second payment for an order already being paid for.
+     */
+    public function test_an_echeque_capture_is_recorded_as_pending_without_confirming_the_order(): void
+    {
+        Http::fake($this->fakeToken() + $this->fakeCreate());
+
+        $order = $this->placePayPalOrder();
+        $variantId = $order->items()->first()->product_variant_id;
+        $before = ProductVariant::find($variantId);
+
+        Http::fake($this->fakeToken() + [
+            '*/v2/checkout/orders/PP-ORDER-1/capture' => Http::response(
+                $this->pendingCaptureBody($this->decimal($order->grand_total_cents))
+            ),
+        ]);
+
+        $response = $this->postJson("/api/v1/orders/{$order->order_number}/paypal/capture", [
+            'paypal_order_id' => 'PP-ORDER-1',
+            'email' => 'dana@example.test',
+        ])
+            // 202: not a failure, and not a confirmation either.
+            ->assertStatus(202)
+            ->assertJsonPath('payment_pending', true);
+
+        // The wording is the point of the whole change.
+        $message = $response->json('message');
+        $this->assertStringContainsString('eCheque', $message);
+        $this->assertStringContainsString('do not pay for it again', $message);
+        $this->assertStringNotContainsString('No money has been taken', $message);
+
+        $order->refresh();
+        $this->assertSame(Order::PAYMENT_PENDING, $order->payment_status);
+        $this->assertNull($order->paid_at);
+
+        // Recorded, but not as money received.
+        $payment = $order->payments()->first();
+        $this->assertSame(Payment::STATUS_PENDING, $payment->status);
+        $this->assertNull($payment->paid_at);
+        $this->assertSame('CAP-ECHECK', $payment->provider_reference);
+        $this->assertSame('PENDING', $payment->raw_response['capture_status']);
+        $this->assertSame('ECHECK', $payment->raw_response['pending_reason']);
+
+        // Stock stays reserved rather than committed: nothing has settled.
+        $after = ProductVariant::find($variantId);
+        $this->assertSame($before->stock_qty, $after->stock_qty);
+        $this->assertSame($before->reserved_qty, $after->reserved_qty);
+
+        // And an administrator can see why the order is sitting there, so its
+        // reserved stock is not the obvious thing to release.
+        $this->assertStringContainsString(
+            'awaiting clearance',
+            $order->statusHistory()->latest('id')->first()->note,
+        );
+    }
+
+    /** Rule 1 does not relax because the money has not landed yet. */
+    public function test_a_pending_capture_for_the_wrong_amount_is_refused(): void
+    {
+        Http::fake($this->fakeToken() + $this->fakeCreate());
+
+        $order = $this->placePayPalOrder();
+
+        Http::fake($this->fakeToken() + [
+            '*/v2/checkout/orders/PP-ORDER-1/capture' => Http::response(
+                $this->pendingCaptureBody('1.00')
+            ),
+        ]);
+
+        $this->postJson("/api/v1/orders/{$order->order_number}/paypal/capture", [
+            'paypal_order_id' => 'PP-ORDER-1',
+            'email' => 'dana@example.test',
+        ])->assertStatus(422);
+
+        $order->refresh();
+        $this->assertSame(Order::PAYMENT_PENDING, $order->payment_status);
+        // Nothing written down for an amount we do not recognise.
+        $this->assertNull($order->payments()->first()->raw_response['capture_status'] ?? null);
+    }
+
+    /**
+     * The same hold arriving by webhook, for the customer who closed the tab.
+     * Without this the order is indistinguishable from an abandoned one.
+     */
+    public function test_a_pending_capture_webhook_records_the_hold_without_confirming(): void
+    {
+        Http::fake($this->fakeToken() + $this->fakeCreate());
+
+        $order = $this->placePayPalOrder();
+
+        config(['services.paypal.webhook_id' => 'WH-TEST']);
+
+        Http::fake($this->fakeToken() + [
+            '*/v1/notifications/verify-webhook-signature' => Http::response(['verification_status' => 'SUCCESS']),
+        ]);
+
+        $this->postJson('/api/v1/webhooks/paypal', [
+            'event_type' => 'PAYMENT.CAPTURE.PENDING',
+            'resource' => [
+                'id' => 'CAP-ECHECK',
+                'status' => 'PENDING',
+                'status_details' => ['reason' => 'ECHECK'],
+                'custom_id' => $order->order_number,
+                'amount' => ['currency_code' => 'CAD', 'value' => $this->decimal($order->grand_total_cents)],
+            ],
+        ])->assertOk();
+
+        $order->refresh();
+        $this->assertSame(Order::PAYMENT_PENDING, $order->payment_status);
+
+        $payment = $order->payments()->first();
+        $this->assertSame(Payment::STATUS_PENDING, $payment->status);
+        $this->assertSame('PENDING', $payment->raw_response['capture_status']);
+    }
+
+    /**
+     * The other half: an eCheque that clears days later. The COMPLETED event is
+     * what finally confirms the order, and it must still do so after a PENDING
+     * event has already written a record against the same capture.
+     */
+    public function test_an_echeque_that_clears_later_confirms_the_order(): void
+    {
+        Http::fake($this->fakeToken() + $this->fakeCreate());
+
+        $order = $this->placePayPalOrder();
+
+        config(['services.paypal.webhook_id' => 'WH-TEST']);
+
+        Http::fake($this->fakeToken() + [
+            '*/v1/notifications/verify-webhook-signature' => Http::response(['verification_status' => 'SUCCESS']),
+        ]);
+
+        $amount = ['currency_code' => 'CAD', 'value' => $this->decimal($order->grand_total_cents)];
+
+        $this->postJson('/api/v1/webhooks/paypal', [
+            'event_type' => 'PAYMENT.CAPTURE.PENDING',
+            'resource' => [
+                'id' => 'CAP-ECHECK',
+                'status' => 'PENDING',
+                'status_details' => ['reason' => 'ECHECK'],
+                'custom_id' => $order->order_number,
+                'amount' => $amount,
+            ],
+        ])->assertOk();
+
+        $this->assertSame(Order::PAYMENT_PENDING, $order->fresh()->payment_status);
+
+        $this->postJson('/api/v1/webhooks/paypal', [
+            'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
+            'resource' => [
+                'id' => 'CAP-ECHECK',
+                'status' => 'COMPLETED',
+                'custom_id' => $order->order_number,
+                'amount' => $amount,
+            ],
+        ])->assertOk();
+
+        $order->refresh();
+        $this->assertSame(Order::PAYMENT_PAID, $order->payment_status);
+
+        $payment = $order->payments()->first();
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+        $this->assertSame('CAP-ECHECK', $payment->paypalCaptureId());
     }
 }
