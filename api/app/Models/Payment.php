@@ -20,12 +20,25 @@ class Payment extends Model
     use HasFactory;
 
     public const PROVIDER_STRIPE = 'stripe';
+
+    public const PROVIDER_PAYPAL = 'paypal';
+
     public const PROVIDER_ETRANSFER = 'etransfer';
+
     public const PROVIDER_MANUAL = 'manual';
 
+    /** The methods checkout may be asked for. Anything else is rejected there. */
+    public const CHECKOUT_PROVIDERS = [
+        self::PROVIDER_PAYPAL,
+        self::PROVIDER_ETRANSFER,
+    ];
+
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_SUCCEEDED = 'succeeded';
+
     public const STATUS_FAILED = 'failed';
+
     public const STATUS_REFUNDED = 'refunded';
 
     protected $guarded = ['id'];
@@ -52,5 +65,21 @@ class Payment extends Model
     public function refundableCents(): int
     {
         return max(0, $this->amount_cents - (int) $this->refunds()->sum('amount_cents'));
+    }
+
+    /**
+     * The PayPal capture this payment was settled by, which is what a refund is
+     * issued against. `provider_reference` holds the PayPal *order* id until the
+     * capture succeeds and replaces it, so the stored capture id is preferred.
+     */
+    public function paypalCaptureId(): ?string
+    {
+        if ($this->provider !== self::PROVIDER_PAYPAL) {
+            return null;
+        }
+
+        $captureId = $this->raw_response['capture_id'] ?? null;
+
+        return $captureId ?: ($this->status === self::STATUS_SUCCEEDED ? $this->provider_reference : null);
     }
 }

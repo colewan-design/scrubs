@@ -31,7 +31,7 @@ nothing has to be transferred back to you at handover.
 |---|---|---|---|
 | 2 | Google app password — order emails | Week 1–2 | **Launch blocker** — no emails can send |
 | 3 | Google OAuth client ID + secret — sign-in | Week 3 | Not blocking — button stays hidden |
-| 4 | Stripe account, then API keys | Week 1 to open | **Launch blocker** — approval takes weeks |
+| 4 | ~~Payment gateway keys~~ — PayPal received 2026-09-25 | Done | Rotate the secret + send the webhook ID |
 | 5 | Domain / DNS access | Week 1 | **Launch blocker** — email lands in spam |
 | 6 | Hosting account | Week 2 | **Launch blocker** — nothing can be deployed |
 | 7 | Stallion Express API key | Week 5 | Not blocking — falls back to fixed rates |
@@ -93,32 +93,51 @@ the policy wording in §7 of the Materials Request a dependency here, not only a
 
 ---
 
-## 4. Payments — Stripe
+## 4. Payments — PayPal
 
-Pending your sign-off on Decision 4 of the Materials Request. **Open the account in week 1 regardless**
-— merchant approval takes weeks and is the one delay that cannot be recovered by working faster later.
+**Received and integrated (2026-09-25).** You supplied a PayPal REST client ID and secret, and
+checkout now takes PayPal payments: the customer pays in a PayPal window, the amount is verified
+against the order server-side, and the order is confirmed automatically. Interac e-Transfer stays
+available alongside it for customers who prefer to pay by transfer.
 
-**Preferred: send no keys at all.** Add me at `dashboard.stripe.com` → **Settings** → **Team** as a
-member with the **Developer** role. I create the keys and webhook myself, you see exactly what was
-created, and you revoke my access at handover with one click.
+**PayPal is switched OFF until you turn it on.** In the admin: **Store settings → Orders → PayPal →
+"Accept PayPal at checkout"**. That section also states which PayPal account the site is connected to,
+so you can confirm it before going live.
 
-**If you would rather send values:**
+### Two things still outstanding
 
-| Value | Where | Looks like |
-|---|---|---|
-| Publishable key | Developers → API keys | `pk_live_...` |
-| Secret key | Developers → API keys → reveal | `sk_live_...` — treat as a password |
-| Webhook signing secret | Developers → Webhooks → add endpoint | `whsec_...` |
+**1. Rotate the secret — please do this first.** The client secret was sent to me as plain text, which
+means it has existed in a chat log and in my machine's shell history. Nothing suggests it has been
+misused, but a payment secret that has travelled in plain text should not stay in service. In the
+PayPal developer dashboard: **Apps & Credentials → your app → Secrets → Generate new secret**, then
+remove the old one and send me the replacement by the method in §1 of this document. Rotating it takes
+about a minute and invalidates the copy that was exposed.
 
-**Please send the test keys first** (`pk_test_` / `sk_test_`). They are available the moment the
-account exists, and checkout can be built and tested on them while the live account is under review —
-that is how the approval wait gets absorbed instead of delaying launch.
+**2. The webhook.** Without it, a payment is only confirmed if the customer's browser comes back from
+PayPal. If they close the tab at the wrong moment, the money is taken but the order sits in Pending
+Payment until someone confirms it by hand. In the dashboard: **Apps & Credentials → your app →
+Webhooks → Add webhook**, with:
 
-**Also confirm:** the statement descriptor customers see on their card statement, max 22 characters
-(recommended: `BULKSCRUBS DIRECT`), and whether to enable Apple Pay, Google Pay and PayPal in CAD.
-Those three are dashboard switches, not development work.
+| Field | Value |
+|---|---|
+| Webhook URL | `https://bulkscrubsdirect.ca/api/v1/webhooks/paypal` |
+| Event types | `PAYMENT.CAPTURE.COMPLETED`, plus `DENIED`, `REVERSED` and `REFUNDED` |
 
-☐ Add me as a Developer team member (recommended) ☐ I will send the keys
+Then send me the **Webhook ID** it shows afterwards (looks like `WH-...`).
+
+**Also worth confirming:** whether you want sandbox credentials as well. The pair you sent is for the
+**live** account, so there is currently no way to test a full payment without moving real money.
+Sandbox credentials from the same dashboard would let the flow be exercised end to end safely.
+
+### Cards — still open
+
+PayPal covers PayPal balances and cards held inside a PayPal account. It does not put a card form on
+our own checkout page. If you want customers to be able to pay by card without a PayPal account, that
+is a separate integration (Stripe, or PayPal's Advanced Card Processing) with its own merchant
+approval — worth deciding on, but it is not blocking launch now that PayPal works.
+
+☐ Secret rotated and replacement sent ☐ Webhook created and ID sent ☐ Sandbox credentials sent
+☐ Decision on a separate card processor
 
 ---
 
@@ -210,8 +229,8 @@ Tick as sent. Nothing needs to arrive in order.
 
 ☐ **2** Sending address + app password + Workspace/Postmark/Gmail decision
 ☐ **3** Google OAuth Client ID + Client secret
-☐ **4** Stripe test keys — please send these first
-☐ **4** Stripe Developer access *or* live keys; statement descriptor confirmed
+☑ **4** PayPal client ID + secret — received 2026-09-25, integrated
+☐ **4** PayPal secret rotated (it was sent in plain text) + webhook ID + sandbox credentials
 ☐ **5** Domain registrar + access arrangement
 ☐ **6** Hosting provider + team access
 ☐ **7** Stallion Express API key + service selection

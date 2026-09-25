@@ -186,7 +186,17 @@ export interface CheckoutQuote {
   weights_complete: boolean
   pickup: { address: string; hours: string; lead_time: string } | null
   etransfer: { instructions: string } | null
+  /**
+   * Present only when PayPal is both configured and switched on in admin, so
+   * the page can render the button without knowing anything about the server's
+   * configuration. `client_id` is public by design — it is what the PayPal JS
+   * SDK is loaded with; the secret never leaves Laravel.
+   */
+  paypal: { client_id: string; mode: 'live' | 'sandbox'; currency: string } | null
 }
+
+/** What checkout may ask to be charged by. Mirrors Payment::CHECKOUT_PROVIDERS. */
+export type PaymentMethod = 'paypal' | 'etransfer'
 
 export interface AddressInput {
   first_name: string

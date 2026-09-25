@@ -37,6 +37,31 @@ return [
         'timeout' => (int) env('STALLION_TIMEOUT', 6),
     ],
 
+    /*
+    | PayPal Checkout (§4).
+    |
+    | `mode` selects the environment, and the credential pair must belong to
+    | that environment — a live client ID is rejected by the sandbox API and
+    | vice versa. Nothing here is enough to take a payment on its own: the
+    | "Accept PayPal" switch in Store settings is the second gate, so a
+    | configured live key sitting in .env cannot start charging customers
+    | until an administrator deliberately turns it on.
+    |
+    | `webhook_id` comes from the webhook you create in the PayPal developer
+    | dashboard. Without it the webhook endpoint refuses every delivery rather
+    | than trusting an unverified one.
+    */
+    'paypal' => [
+        'mode' => env('PAYPAL_MODE', 'sandbox'),
+        'client_id' => env('PAYPAL_CLIENT_ID'),
+        'client_secret' => env('PAYPAL_CLIENT_SECRET'),
+        'webhook_id' => env('PAYPAL_WEBHOOK_ID'),
+        'timeout' => (int) env('PAYPAL_TIMEOUT', 20),
+        'base_url' => env('PAYPAL_MODE', 'sandbox') === 'live'
+            ? 'https://api-m.paypal.com'
+            : 'https://api-m.sandbox.paypal.com',
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

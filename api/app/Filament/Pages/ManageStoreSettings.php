@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Support\MoneyInput;
+use App\Services\Payments\PayPalClient;
 use App\Support\Settings;
 use BackedEnum;
 use Filament\Forms\Components\Textarea;
@@ -153,8 +154,20 @@ class ManageStoreSettings extends Page
                                     ->helperText('Where to send the alert when an order comes in.'),
                             ])->columns(2),
 
+                        Section::make('PayPal')
+                            ->description(self::paypalDescription())
+                            ->schema([
+                                Toggle::make(self::field('payments.paypal_enabled'))
+                                    ->label('Accept PayPal at checkout')
+                                    ->helperText('Customers pay immediately and the order is confirmed automatically.')
+                                    // Nothing to switch on without a key, and a
+                                    // toggle that silently does nothing is worse
+                                    // than one that explains why it is greyed out.
+                                    ->disabled(fn () => ! app(PayPalClient::class)->configured()),
+                            ]),
+
                         Section::make('Interac e-Transfer')
-                            ->description('Used while card payment is pending a merchant account. Orders are placed as Pending Payment and settled out of band.')
+                            ->description('An offline fallback. Orders are placed as Pending Payment and settled out of band — useful alongside PayPal for customers who prefer to pay by transfer.')
                             ->schema([
                                 Toggle::make(self::field('orders.etransfer_enabled'))
                                     ->label('Offer e-Transfer at checkout'),
@@ -254,5 +267,33 @@ class ManageStoreSettings extends Page
     protected static function field(string $key): string
     {
         return str_replace('.', '_', $key);
+    }
+
+    /**
+     * Says out loud which PayPal account the site is wired to.
+     *
+     * Worth the space: the difference between sandbox and live is the difference
+     * between test data and real customers' money, and it is decided in a file
+     * nobody administering the store can see.
+     */
+    protected static function paypalDescription(): string
+    {
+        $client = app(PayPalClient::class);
+
+        if (! $client->configured()) {
+            return 'No PayPal credentials are configured, so this cannot be switched on. '
+                .'Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET on the server first.';
+        }
+
+        $webhook = config('services.paypal.webhook_id')
+            ? ''
+            : ' No webhook is configured, so a payment is only confirmed if the customer\'s browser '
+                .'returns from PayPal — an order paid in a tab that was then closed will sit in '
+                .'Pending Payment until someone confirms it by hand.';
+
+        return $client->isLive()
+            ? 'Connected to a LIVE PayPal account. Switching this on takes real money from real customers.'.$webhook
+            : 'Connected to the PayPal SANDBOX. Payments here are tests and move no real money, '
+                .'so this must not be left on in production.'.$webhook;
     }
 }

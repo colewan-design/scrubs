@@ -23,6 +23,12 @@ class Settings
         'orders.reservation_ttl_minutes' => 20,
         'orders.etransfer_enabled' => false,
         'orders.etransfer_instructions' => '',
+
+        // §4. PayPal is wired but held behind this switch, so credentials in the
+        // environment are not on their own enough to start charging cards — the
+        // same two-gate arrangement the Stallion rates and order emails use.
+        // Off by default: a live key deployed by accident must not take money.
+        'payments.paypal_enabled' => false,
         'orders.number_prefix' => 'BSD-',
         'orders.number_start' => 10000,
         'inventory.low_stock_threshold' => 5,

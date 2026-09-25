@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ContentController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PayPalController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\WholesaleController;
@@ -86,6 +87,23 @@ Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('thro
 // Order lookup proves ownership itself — signed-in owner, or the email the
 // order was placed with — so a guest can see their own confirmation.
 Route::get('/orders/{order}', [OrderController::class, 'show']);
+
+// ---- PayPal (§4) -----------------------------------------------------------
+// Public for the same reason checkout is: a guest must be able to pay for the
+// order they just placed. Both prove ownership of the named order inside the
+// controller, and neither accepts an amount — the total is read from the order.
+//
+// Throttled harder than checkout: these reach an external payment API, so an
+// unthrottled loop here is a way to burn our PayPal rate limit.
+Route::middleware('throttle:20,1')->group(function () {
+    Route::post('/orders/{order}/paypal/create', [PayPalController::class, 'create']);
+    Route::post('/orders/{order}/paypal/capture', [PayPalController::class, 'capture']);
+});
+
+// PayPal's server-to-server notification. Unauthenticated by necessity —
+// PayPal has no session — and verified by signature instead. It carries no
+// Origin, so Sanctum leaves it stateless and CSRF does not apply.
+Route::post('/webhooks/paypal', [PayPalController::class, 'webhook']);
 
 // ---- Authenticated customer account (§8) ----------------------------------
 Route::middleware('auth:sanctum')->group(function () {

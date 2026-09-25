@@ -4,8 +4,10 @@ namespace App\Filament\Resources\Orders\Tables;
 
 use App\Filament\Support\CsvExportAction;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Shipment;
 use App\Services\Orders\OrderService;
+use App\Services\Payments\PayPalService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
@@ -204,19 +206,31 @@ class OrdersTable
                     'Order cancelled and stock returned.'
                 )),
 
-            // Records money already returned to the customer — it does not move
-            // money itself. Once a processor is integrated the provider call
-            // goes in front of OrderService::refund(), not in place of it.
+            /*
+             * Two behaviours behind one button, chosen by how the order was paid.
+             *
+             * A PayPal order is refunded THROUGH PayPal: the provider call goes
+             * in front of OrderService::refund(), which still writes the ledger
+             * row and returns the stock. Anything else — e-Transfer, a manual
+             * payment — records money the admin has already sent by hand, and
+             * moves nothing itself.
+             *
+             * The modal says which of the two is about to happen, because
+             * "record a refund" and "refund the customer" are very different
+             * actions to take by mistake.
+             */
             Action::make('refund')
-                ->label('Record refund')
+                ->label(fn (Order $record) => self::refundsViaPayPal($record) ? 'Refund via PayPal' : 'Record refund')
                 ->icon('heroicon-o-receipt-refund')
                 ->color('warning')
                 ->visible(fn (Order $record) => in_array($record->payment_status, [
                     Order::PAYMENT_PAID,
                     Order::PAYMENT_PARTIALLY_REFUNDED,
                 ], true) && $record->outstandingRefundableCents() > 0)
-                ->modalHeading(fn (Order $record) => "Record refund — {$record->order_number}")
-                ->modalDescription('Refund the customer through your payment provider first, then record it here.')
+                ->modalHeading(fn (Order $record) => "Refund — {$record->order_number}")
+                ->modalDescription(fn (Order $record) => self::refundsViaPayPal($record)
+                    ? 'This sends the refund through PayPal now and returns the money to the customer. It cannot be undone.'
+                    : 'Refund the customer through your payment provider first, then record it here.')
                 ->schema([
                     TextInput::make('amount')
                         ->label('Amount')
@@ -231,28 +245,62 @@ class OrdersTable
 
                     Textarea::make('reason')->label('Reason')->rows(2)->maxLength(500),
 
+                    // Hidden for PayPal: PayPal issues the reference, and a
+                    // typed-in one would just be a second, unreliable record of
+                    // the same thing.
                     TextInput::make('provider_reference')
                         ->label('Provider reference')
                         ->maxLength(255)
-                        ->helperText('The refund ID from Stripe, PayPal or your bank, so the two records can be reconciled.'),
+                        ->hidden(fn (Order $record) => self::refundsViaPayPal($record))
+                        ->helperText('The refund ID from your bank or provider, so the two records can be reconciled.'),
 
                     Toggle::make('restock')
                         ->label('Return items to stock')
                         ->default(true)
                         ->helperText('Turn this off if the goods are not coming back — damaged or a goodwill refund.'),
                 ])
-                ->action(fn (Order $record, array $data) => self::run(
-                    fn () => app(OrderService::class)->refund(
-                        $record,
-                        (int) round(((float) $data['amount']) * 100),
-                        $data['reason'] ?: null,
-                        (bool) ($data['restock'] ?? true),
-                        $data['provider_reference'] ?: null,
-                        auth()->user(),
-                    ),
-                    'Refund recorded.'
-                )),
+                ->action(function (Order $record, array $data) {
+                    $amountCents = (int) round(((float) $data['amount']) * 100);
+                    $reason = $data['reason'] ?: null;
+                    $restock = (bool) ($data['restock'] ?? true);
+
+                    if (self::refundsViaPayPal($record)) {
+                        self::run(
+                            fn () => app(PayPalService::class)->refund(
+                                $record, $amountCents, $reason, $restock, auth()->user(),
+                            ),
+                            'Refunded through PayPal and recorded.'
+                        );
+
+                        return;
+                    }
+
+                    self::run(
+                        fn () => app(OrderService::class)->refund(
+                            $record,
+                            $amountCents,
+                            $reason,
+                            $restock,
+                            $data['provider_reference'] ?: null,
+                            auth()->user(),
+                        ),
+                        'Refund recorded.'
+                    );
+                }),
         ];
+    }
+
+    /**
+     * Whether this order can be refunded through PayPal, which needs a captured
+     * PayPal payment to refund against — not merely an order that was *going* to
+     * be paid that way.
+     */
+    protected static function refundsViaPayPal(Order $order): bool
+    {
+        return $order->payments
+            ->where('provider', Payment::PROVIDER_PAYPAL)
+            ->where('status', Payment::STATUS_SUCCEEDED)
+            ->contains(fn (Payment $payment) => $payment->paypalCaptureId() !== null);
     }
 
     /**
