@@ -23,11 +23,15 @@ import type {
  * logic at all: it posts a destination and a choice, and re-renders whatever
  * comes back. Tax, shipping and the grand total are re-derived again when the
  * order is placed, so a stale quote can never become a charge.
+ *
+ * Checkout needs a customer account (email + password or Google). A signed-out
+ * shopper is sent to sign in and brought back here, cart intact.
  */
+definePageMeta({ middleware: 'auth' })
+
 const api = useApi()
 const auth = useAuthStore()
 const cart = useCartStore()
-const route = useRoute()
 
 // Shared with the cart, which is where the choice is now made (a cookie, so it
 // survives the navigation). Writing to it here keeps the two pages agreeing if
@@ -594,16 +598,6 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
                 </p>
               </div>
             </div>
-
-            <p v-if="!auth.isAuthenticated" class="text-[13px] text-ink-500">
-              Already have an account?
-              <NuxtLink
-                :to="{ path: '/account/login', query: { redirect: route.fullPath } }"
-                class="font-medium text-ink-900 underline underline-offset-4"
-              >
-                Sign in
-              </NuxtLink>
-            </p>
           </div>
 
           <div class="mt-4 grid gap-3 sm:grid-cols-2">

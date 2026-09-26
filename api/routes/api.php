@@ -79,18 +79,22 @@ Route::get('/content/store', [ContentController::class, 'store']);
 Route::get('/content/policies/{slug}', [ContentController::class, 'policy']);
 
 // ---- Checkout (§4, §5, §6, §7) ---------------------------------------------
-// Guests may check out: an account is what unlocks wholesale pricing, not what
-// permits a purchase. Both endpoints price server-side from the cart.
-Route::post('/checkout/quote', [CheckoutController::class, 'quote']);
-Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:12,1');
+// Checking out needs a customer account (email + password or Google). A guest
+// can still fill a cart; it carries over when they sign in. Both endpoints
+// price server-side from the cart.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/checkout/quote', [CheckoutController::class, 'quote']);
+    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:12,1');
+});
 
 // Order lookup proves ownership itself — signed-in owner, or the email the
-// order was placed with — so a guest can see their own confirmation.
+// order was placed with — so orders placed as a guest before checkout needed an
+// account stay readable.
 Route::get('/orders/{order}', [OrderController::class, 'show']);
 
 // ---- PayPal (§4) -----------------------------------------------------------
-// Public for the same reason checkout is: a guest must be able to pay for the
-// order they just placed. Both prove ownership of the named order inside the
+// Left public so an order placed as a guest before checkout needed an account
+// can still be paid for. Both prove ownership of the named order inside the
 // controller, and neither accepts an amount — the total is read from the order.
 //
 // Throttled harder than checkout: these reach an external payment API, so an

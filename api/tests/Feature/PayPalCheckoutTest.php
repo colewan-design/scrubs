@@ -55,6 +55,9 @@ class PayPalCheckoutTest extends TestCase
         Cache::flush();
 
         app(Settings::class)->set('payments.paypal_enabled', true);
+
+        // Checkout needs an account. The order email the tests post matches it.
+        $this->actingAs(User::factory()->create(['email' => 'dana@example.test']));
     }
 
     // ------------------------------------------------------------- fixtures
@@ -511,10 +514,16 @@ class PayPalCheckoutTest extends TestCase
 
         Http::fake($this->fakeToken());
 
+        // Signed in, but as somebody else.
+        $this->actingAs(User::factory()->create(['email' => 'attacker@example.test']));
+
         $this->postJson("/api/v1/orders/{$order->order_number}/paypal/capture", [
             'paypal_order_id' => 'PP-ORDER-1',
             'email' => 'attacker@example.test',
         ])->assertNotFound();
+
+        // And not signed in at all.
+        $this->app['auth']->forgetGuards();
 
         $this->postJson("/api/v1/orders/{$order->order_number}/paypal/capture", [
             'paypal_order_id' => 'PP-ORDER-1',

@@ -14,12 +14,19 @@ const errors = ref<Record<string, string[]>>({})
 // query string rather than a rejected promise.
 const generalError = ref(String(route.query.message || ''))
 
+// Checkout sends signed-out shoppers here; say why, and keep the return path
+// when they need to create an account instead.
+const redirect = computed(() =>
+  typeof route.query.redirect === 'string' ? route.query.redirect : undefined,
+)
+const fromCheckout = computed(() => redirect.value?.startsWith('/checkout') ?? false)
+
 async function submit() {
   errors.value = {}
   generalError.value = ''
   try {
     await auth.login({ ...form })
-    await navigateTo(String(route.query.redirect || '/account'))
+    await navigateTo(redirect.value || '/account')
   } catch (e: any) {
     if (e?.data?.errors) errors.value = e.data.errors
     else generalError.value = e?.data?.message || 'Something went wrong. Please try again.'
@@ -34,7 +41,12 @@ useSeoMeta({ title: 'Sign in', robots: 'noindex' })
     <div class="mx-auto max-w-[420px]">
       <h1 class="font-display text-[32px] text-ink-900">Sign in</h1>
       <p class="mt-2 text-[15px] text-ink-500">
-        Sign in to see wholesale pricing and your orders.
+        <template v-if="fromCheckout">
+          Sign in or create an account to check out. Your cart is saved.
+        </template>
+        <template v-else>
+          Sign in to see wholesale pricing and your orders.
+        </template>
       </p>
 
       <form class="mt-7 space-y-4" novalidate @submit.prevent="submit">
@@ -83,7 +95,10 @@ useSeoMeta({ title: 'Sign in', robots: 'noindex' })
 
         <p class="text-center text-[13px] text-ink-500">
           New here?
-          <NuxtLink to="/account/register" class="text-ink-900 underline underline-offset-4">
+          <NuxtLink
+            :to="{ path: '/account/register', query: redirect ? { redirect } : undefined }"
+            class="text-ink-900 underline underline-offset-4"
+          >
             Create an account
           </NuxtLink>
         </p>

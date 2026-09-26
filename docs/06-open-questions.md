@@ -66,6 +66,9 @@ Not addressed anywhere in the brief.
 **Recommended default:** yes for retail-only carts (less friction on small orders), account required for
 wholesale pricing — which reinforces the unlock mechanic rather than undermining it.
 
+**Decided 2026-09-26: no guest checkout.** Every order needs a customer account, signed in by email and
+password or Google. Guests can still browse and fill a cart; it carries over when they sign in.
+
 ### Q6. Which provinces are you registered to collect tax in? ⚠️
 **This one needs the client's accountant, not us.** GST/HST is one question; PST in British Columbia,
 Saskatchewan and Manitoba, and QST in Quebec, each carry separate registration obligations that depend
