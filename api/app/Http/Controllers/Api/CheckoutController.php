@@ -8,6 +8,8 @@ use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\CartService;
 use App\Services\Orders\OrderService;
+use App\Services\Payments\PaymentException;
+use App\Services\Payments\PaymentService;
 use App\Services\Shipping\Destination;
 use App\Services\Shipping\Parcel;
 use App\Services\Shipping\ShippingService;
@@ -34,6 +36,7 @@ class CheckoutController extends Controller
         protected ShippingService $shipping,
         protected TaxService $tax,
         protected Settings $settings,
+        protected PaymentService $payments,
     ) {}
 
     /** Shipping options and tax for a destination, before anything is committed. */
@@ -114,6 +117,10 @@ class CheckoutController extends Controller
             'etransfer' => $this->settings->bool('orders.etransfer_enabled') ? [
                 'instructions' => $this->settings->string('orders.etransfer_instructions'),
             ] : null,
+            // What the customer may actually pay with, decided server-side from
+            // credentials plus the admin switch. The storefront renders this
+            // list rather than deciding for itself which methods exist.
+            'payment_methods' => $this->payments->availableMethods(),
         ]);
     }
 
@@ -155,10 +162,30 @@ class CheckoutController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json([
+        // The order now exists and is holding stock. Opening the provider-side
+        // payment is a separate, failable step that happens AFTER that — never
+        // before, because an intent created against an order that then fails to
+        // save is an authorisation with nothing behind it.
+        //
+        // A provider outage here is therefore not a failed checkout. The order
+        // stands, and the storefront is told to offer a retry against
+        // /orders/{order}/payment rather than placing a second order.
+        $session = null;
+        $paymentError = null;
+
+        try {
+            $session = $this->payments->prepare($order);
+        } catch (PaymentException $e) {
+            report($e);
+            $paymentError = $e->getMessage();
+        }
+
+        return response()->json(array_filter([
             'order' => OrderResource::make($order->load([
-                'items', 'taxes', 'addresses', 'statusHistory',
+                'items', 'taxes', 'addresses', 'statusHistory', 'payments',
             ]))->toArray($request),
-        ], 201);
+            'payment' => $session?->toArray(),
+            'payment_error' => $paymentError,
+        ], fn ($v) => $v !== null), 201);
     }
 }

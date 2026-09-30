@@ -186,6 +186,35 @@ export interface CheckoutQuote {
   weights_complete: boolean
   pickup: { address: string; hours: string; lead_time: string } | null
   etransfer: { instructions: string } | null
+  payment_methods: PaymentMethod[]
+}
+
+/**
+ * A way to pay, as decided by the server. `kind` is the part that matters to
+ * the page: a gateway method needs a card form and can fail, an offline one is
+ * instructions and cannot.
+ */
+export interface PaymentMethod {
+  code: 'stripe' | 'etransfer' | 'manual'
+  kind: 'gateway' | 'offline'
+  label: string
+  description: string
+  /** Publishable key, present on gateway methods only. Authorises nothing. */
+  public_key?: string | null
+  test_mode: boolean
+}
+
+/**
+ * What the browser needs to complete a payment. `client_secret` is scoped by
+ * Stripe to this one payment of this one amount — it cannot be replayed to
+ * charge anything else, which is why it is safe to hand to the page.
+ */
+export interface PaymentSession {
+  provider: string
+  reference: string
+  client_secret: string
+  public_key: string
+  test_mode: boolean
 }
 
 export interface AddressInput {
@@ -233,6 +262,8 @@ export interface Order {
   phone: string | null
   customer_note: string | null
   is_cancellable: boolean
+  /** Which provider is settling this order — 'stripe', 'etransfer', 'manual'. */
+  payment_method?: string | null
   pricing_tier_name: string | null
   totals: {
     subtotal: Money

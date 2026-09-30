@@ -37,6 +37,28 @@ return [
         'timeout' => (int) env('STALLION_TIMEOUT', 6),
     ],
 
+    /*
+    | Stripe (§4). Three keys, and all three matter for different reasons:
+    |
+    |   key        — publishable. Safe in a browser; it is handed to the
+    |                storefront by the API rather than baked into the Nuxt
+    |                build, so rotating it is a restart and not a redeploy.
+    |   secret     — server only. Never leaves this process.
+    |   webhook    — the signing secret for the endpoint. Without it a webhook
+    |                is an unauthenticated POST that can mark orders paid, so
+    |                StripeGateway refuses to verify when it is unset rather
+    |                than trusting the payload.
+    |
+    | `STRIPE_KEY` beginning `pk_test_` is what keeps a staging deployment from
+    | charging a real card; the admin panel surfaces which mode is live.
+    */
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'timeout' => (int) env('STRIPE_TIMEOUT', 20),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

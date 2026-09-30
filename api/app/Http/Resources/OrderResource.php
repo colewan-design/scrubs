@@ -89,14 +89,31 @@ class OrderResource extends JsonResource
                 'shipped_at' => $s->shipped_at?->toIso8601String(),
             ])),
 
-            // The customer-facing timeline. Internal notes are admin-only and
-            // deliberately absent here.
-            'timeline' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($h) => [
-                'status' => $h->to_status,
-                'status_label' => Order::STATUS_LABELS[$h->to_status] ?? $h->to_status,
-                'note' => $h->note,
-                'at' => $h->created_at?->toIso8601String(),
-            ])),
+            // The customer-facing timeline. Rows flagged internal are the
+            // payment provider's messages to us — underpayments, a charge that
+            // landed after cancellation — and are filtered out here rather than
+            // relying on whoever writes the note to phrase it for two
+            // audiences at once.
+            'timeline' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory
+                ->reject(fn ($h) => (bool) $h->is_internal)
+                ->values()
+                ->map(fn ($h) => [
+                    'status' => $h->to_status,
+                    'status_label' => Order::STATUS_LABELS[$h->to_status] ?? $h->to_status,
+                    'note' => $h->note,
+                    'at' => $h->created_at?->toIso8601String(),
+                ])),
+
+            // How this order is being paid, so the confirmation page can say
+            // "card" or "e-Transfer" instead of guessing. Never the reference,
+            // never the last four — a receipt page proved only that the reader
+            // knows an email address.
+            // whenLoaded, not a bare access: the order list renders twenty of
+            // these and a lazy relation here would be twenty extra queries.
+            'payment_method' => $this->whenLoaded(
+                'payments',
+                fn () => $this->payments->first()?->provider
+            ),
 
             'placed_at' => $this->placed_at?->toIso8601String(),
             'paid_at' => $this->paid_at?->toIso8601String(),

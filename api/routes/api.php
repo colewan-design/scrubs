@@ -9,8 +9,10 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ContentController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\WholesaleController;
 use Illuminate\Support\Facades\Route;
 
@@ -86,6 +88,20 @@ Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('thro
 // Order lookup proves ownership itself — signed-in owner, or the email the
 // order was placed with — so a guest can see their own confirmation.
 Route::get('/orders/{order}', [OrderController::class, 'show']);
+
+// Re-open the payment for an order already placed: a retry after the provider
+// was unreachable, or a customer coming back to finish. Proves ownership the
+// same way the lookup above does. Creates no order and moves no money.
+Route::post('/orders/{order}/payment', [PaymentController::class, 'session'])
+    ->middleware('throttle:12,1');
+
+// ---- Payment provider callbacks (§4) ---------------------------------------
+// THIS is what marks an order paid — not the browser. Authenticated by Stripe's
+// own signature rather than by a session, so it sits outside every auth group;
+// an unsigned request is refused in the controller before anything is read.
+// Never throttled: Stripe retries a rejected delivery for days, and a 429 here
+// would look to it exactly like an outage.
+Route::post('/webhooks/stripe', StripeWebhookController::class);
 
 // ---- Authenticated customer account (§8) ----------------------------------
 Route::middleware('auth:sanctum')->group(function () {

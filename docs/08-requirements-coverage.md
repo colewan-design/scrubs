@@ -11,13 +11,12 @@ the client, or on a third party.
 
 ## Verdict in one paragraph
 
-**Fourteen of the fifteen sections are functionally complete.** The §15 launch flow —
-*browse → unlock → sign up → see tiers → reach MOQ → checkout → shipping/pickup → tracking* — works
-end to end today with one break in it: **there is no payment processor**. Orders are placed as
-*Pending Payment* and settled out of band. That is the only gap that blocks taking real money, and it
-is blocked on a client decision plus a merchant account, not on development time. Everything else
-outstanding is either a client-supplied material (§14) or a small finish-off item listed at the
-bottom.
+**All fifteen sections are functionally complete.** The §15 launch flow —
+*browse → unlock → sign up → see tiers → reach MOQ → checkout → **payment** → shipping/pickup →
+tracking* — works end to end, payment included as of 2026-09-21. **No section is now blocked on
+development work.** What remains is credentials and client-supplied material: Stripe keys, a mail
+service, the product catalogue, and the policy wording. Each is listed at the bottom with what it
+blocks.
 
 ## Section-by-section
 
@@ -58,25 +57,52 @@ page source to read. The cart determines and applies the correct tier automatica
 below the threshold still checks out at retail. Detail in
 [07-signin-and-accounts.md](07-signin-and-accounts.md).
 
-### §4 Orders & Checkout — ⚠️ **the one real gap**
+### §4 Orders & Checkout — ✅ complete, awaiting keys
+
+> **Updated 2026-09-21.** Card payment is now built. Stripe is integrated through Payment Intents
+> with the Payment Element embedded in the existing checkout page, covered by 18 integration tests.
+> Nothing remains but credentials.
 
 | Item | State |
 |---|---|
 | CAD as primary currency | ✅ |
 | Contact info, shipping/billing address, ship-or-pickup, Canadian taxes, shipping charge, wholesale discount, subtotal and total, order confirmation | ✅ all present at checkout |
-| **Visa / Mastercard / PayPal / wallet payment** | ❌ **not implemented** |
-| Interac e-Transfer / manual payment | ✅ order is placed as *Pending Payment* with instructions from admin settings |
-| BNPL not required at launch, architecture allows it later | ✅ the `payments` table is provider-agnostic (`stripe` / `etransfer` / `manual`) and stores only a provider reference plus last four digits |
+| **Visa / Mastercard / Amex** | ✅ Stripe Payment Element |
+| **Apple Pay / Google Pay** | ✅ appear automatically on supporting devices — no per-method code |
+| **PayPal** | ⚠️ see below |
+| Interac e-Transfer / manual payment | ✅ unchanged — placed as *Pending Payment* and settled by an administrator |
+| BNPL not required at launch, architecture allows it later | ✅ a Stripe dashboard switch, not development work |
 
-**What "not implemented" means concretely.** There is no payment SDK in `composer.json`, no
-payment controller, no webhook route, and no card form in the storefront. Checkout says so plainly
-rather than pretending. The schema, the refund flow, the admin "Mark paid" action and the payment
-notification are all built and waiting — what is missing is the integration itself.
+**How it works.** The order is placed first, which reserves stock and opens a PaymentIntent against
+the total the server derived; the card is confirmed against that intent; and the order is marked
+paid **only by a signature-verified webhook from Stripe** — never by the browser, which can close
+its tab mid-redirect and is in any case an untrusted client. Card data never touches the server: the
+fields are Stripe-hosted iframes, so the PCI position stays **SAQ-A** as §12 requires. Only the
+provider reference, card brand and last four digits are stored.
 
-**Why it is not built.** It is blocked on two client decisions, both flagged as open since
-2026-09-02: which processor, and a merchant account. Recommendation remains **Stripe** — one
-integration covers Visa/Mastercard/Amex, Apple Pay, Google Pay and PayPal, with BNPL available later
-without re-architecting. Estimated **1.5–2 weeks** once the account exists.
+Refunds now move money. The admin action calls Stripe and records Stripe's own refund id, and a
+refund issued from the Stripe dashboard is reconciled back through the webhook without
+double-counting.
+
+**Two things worth knowing:**
+
+- **PayPal may not be available through Stripe on a Canadian account.** Stripe offers PayPal as a
+  payment method only in certain regions, and Canada has historically not been among them. **This
+  must be checked against the live account before launch rather than assumed.** If it is
+  unavailable, PayPal is a second implementation of the `PaymentGateway` interface alongside
+  `StripeGateway` — which is why that interface exists rather than the order code calling Stripe
+  directly. Budget ~1 week if it is needed.
+- **Cards require two switches, deliberately.** Keys present in the server environment *and*
+  "Accept card payments" enabled in Store settings → Payments. Pasting a key into `.env` must not
+  silently start charging customers, and the toggle alone must not offer a card form with nothing
+  behind it.
+
+**Side effect that had to be handled.** A card step introduces the one thing that was previously
+impossible: an order abandoned halfway through paying, holding stock nobody else can buy. The
+`orders.reservation_ttl_minutes` setting existed but nothing acted on it. `orders:release-abandoned`
+now runs every five minutes, cancels unpaid **card** orders past the window, returns their stock and
+cancels the stranded intent at Stripe. e-Transfer orders are deliberately exempt — those are
+*supposed* to sit unpaid for days.
 
 ### §5 Shipping / Pickup — ✅ complete, one optional item deferred
 
@@ -189,10 +215,11 @@ Unchanged and still the largest schedule risk. The launch-blocking ones are the 
 (also blocks the Google consent screen), the **final three wholesale tiers**, and the **product
 catalogue with photos, SKUs, colours, sizes and opening inventory**.
 
-### §15 Version 1 priorities — ✅ except payment
+### §15 Version 1 priorities — ✅ complete
 
-`Browse → Unlock → Signup/Sign in → See tiers → Reach MOQ → Checkout → **Payment** → Shipping/Pickup
-→ Tracking`. Every arrow works today except the bolded one.
+`Browse → Unlock → Signup/Sign in → See tiers → Reach MOQ → Checkout → Payment → Shipping/Pickup
+→ Tracking`. **Every arrow now works.** Payment was the last one, closed on 2026-09-21; it runs on
+Stripe test keys the moment the account exists, and on live keys the moment it is approved.
 
 ## Feasible and not yet done
 
@@ -200,13 +227,24 @@ Ranked by what actually holds up launch.
 
 | # | Gap | Section | Blocked on | Effort |
 |---|---|---|---|---|
-| 1 | **Payment processing** | §4 | Client: processor choice + merchant account | 1.5–2 weeks |
+| 1 | **Stripe keys + webhook secret** | §4 | Client: merchant account (approval takes weeks — open it now) | minutes once they arrive |
 | 2 | Switch on transactional email (mailer + toggle) | §10 | Client: mail service account | ~half a day |
-| 3 | Confirm PST/QST registration, then activate those rates | §6 | Client: registration status | minutes once known |
-| 4 | Set `BACKUP_DISK` and add the scheduler cron entry | §12 | Deployment: object-storage bucket | ~1 hour at deploy |
-| 5 | Stallion live-rate validation | §5 | Client: account + API key | ~2 days once keyed |
-| 6 | Stallion label creation / shipment push | §5 | Same key; "if supported" in the brief | ~3 days, optional |
+| 3 | Confirm PayPal availability on the live Stripe account | §4 | Client: account exists | ~1 week **only if** unavailable |
+| 4 | Confirm PST/QST registration, then activate those rates | §6 | Client: registration status | minutes once known |
+| 5 | Set `BACKUP_DISK` and add the scheduler cron entry | §12 | Deployment: object-storage bucket | ~1 hour at deploy |
+| 6 | Stallion live-rate validation | §5 | Client: account + API key | ~2 days once keyed |
+| 7 | Stallion label creation / shipment push | §5 | Same key; "if supported" in the brief | ~3 days, optional |
 
-**Nothing on this list is now blocked on development work alone.** The two items that were —
-printing the tax registration number, and the backup process — were completed on 2026-09-03 and are
-covered by tests. Everything remaining waits on the client, a third party, or the production deploy.
+**Nothing on this list is blocked on development work alone.** Every item waits on the client, a
+third party, or the production deploy. Items 1 and 3 share one dependency — the Stripe account —
+which is why it is the single most time-sensitive thing outstanding: the code is finished and
+tested, and merchant approval is the only part nobody can make go faster.
+
+**One scheduler note carried over from §12, now more important than it was.** The cron entry
+
+```
+* * * * * cd /var/www/bulkscrubs/api && php artisan schedule:run
+```
+
+was previously only the backup. It now also drives `orders:release-abandoned`. Without it, stock
+reserved by abandoned card checkouts is never returned to sale.

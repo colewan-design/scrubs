@@ -42,7 +42,7 @@ checkout, and order creation alike — the frontend must never compute a price.
 
 1. **Tier basis** — are the three wholesale tiers triggered by cart *dollar value*, *unit quantity*, or either? The document uses "MOQ" and "order value" interchangeably. Schema and cart UX both depend on the answer.
 2. **Guest wholesale** — if a logged-out visitor reaches $200, do they get wholesale pricing at checkout, or must they sign in first? Recommendation: require sign-in (it is the whole point of the unlock mechanic).
-3. **Payment processor** — recommendation is **Stripe** (cards + Apple/Google Pay + PayPal + later BNPL through one integration). Needs client sign-off because it determines merchant account setup.
+3. ~~**Payment processor**~~ — **resolved 2026-09-21. Stripe is built and tested** (Payment Intents + Payment Element, webhook-confirmed, SAQ-A). What is left is the merchant account itself: open it now, because approval takes weeks and the code turns on the day test keys arrive. One caveat carried into [08](docs/08-requirements-coverage.md): **PayPal may not be offered by Stripe on a Canadian account** and must be checked against the live dashboard — if not, it is a second `PaymentGateway` implementation, not a rewrite.
 4. **Stallion Express account + API key** — cannot validate the integration without live credentials. A table-rate shipping fallback is being built regardless so this never blocks launch.
 
 ### Decisions locked
@@ -53,6 +53,7 @@ checkout, and order creation alike — the frontend must never compute a price.
 | Hosting: single VPS, Canadian region | **Confirmed** | 2026-09-02 |
 | Admin dashboard built on **Filament**, not a custom Nuxt SPA | **Confirmed** | 2026-09-02 |
 | Social sign-in: **Google only — Apple Sign In dropped** | **Confirmed** | 2026-09-04 |
+| Payments: **Stripe**, embedded Payment Element rather than hosted Checkout | **Built** | 2026-09-21 |
 
 Filament runs inside the same Laravel application, against the same models and the same
 `PricingService` as the storefront, so the admin and the shop can never disagree about a price.

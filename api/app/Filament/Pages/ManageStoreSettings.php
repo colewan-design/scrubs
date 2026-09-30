@@ -3,11 +3,13 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Support\MoneyInput;
+use App\Services\Payments\StripeGateway;
 use App\Support\Settings;
 use BackedEnum;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Pages\Concerns\HasUnsavedDataChangesAlert;
 use Filament\Pages\Page;
@@ -153,8 +155,32 @@ class ManageStoreSettings extends Page
                                     ->helperText('Where to send the alert when an order comes in.'),
                             ])->columns(2),
 
+                    ]),
+
+                    Tab::make('Payments')->schema([
+                        Section::make('Card payments — Stripe')
+                            ->description('Cards, Apple Pay and Google Pay. The keys themselves live in the server environment, not in this database, so they cannot be read back or leaked from here; this page reports whether they are present and controls whether checkout offers them.')
+                            ->schema([
+                                TextEntry::make('stripe_status')
+                                    ->label('Stripe keys')
+                                    ->state(fn (): string => self::stripeStatus())
+                                    ->columnSpanFull(),
+
+                                TextEntry::make('stripe_webhook')
+                                    ->label('Webhook endpoint')
+                                    ->state(fn (): string => url('/api/v1/webhooks/stripe'))
+                                    ->helperText('Add this URL in Stripe → Developers → Webhooks, subscribed to payment_intent.succeeded, payment_intent.payment_failed and charge.refunded. Then put its signing secret in STRIPE_WEBHOOK_SECRET.')
+                                    ->copyable()
+                                    ->columnSpanFull(),
+
+                                Toggle::make(self::field('payments.card_enabled'))
+                                    ->label('Accept card payments at checkout')
+                                    ->helperText('Has no effect until the keys above are present — both are required, so pasting a key into the server does not start charging cards on its own.')
+                                    ->columnSpanFull(),
+                            ]),
+
                         Section::make('Interac e-Transfer')
-                            ->description('Used while card payment is pending a merchant account. Orders are placed as Pending Payment and settled out of band.')
+                            ->description('An offline method: the order is placed as Pending Payment and an administrator marks it paid when the transfer arrives. These orders are never released automatically, however long they sit.')
                             ->schema([
                                 Toggle::make(self::field('orders.etransfer_enabled'))
                                     ->label('Offer e-Transfer at checkout'),
@@ -254,5 +280,31 @@ class ManageStoreSettings extends Page
     protected static function field(string $key): string
     {
         return str_replace('.', '_', $key);
+    }
+
+    /**
+     * Report the Stripe configuration without ever printing a key.
+     *
+     * Test versus live is called out first because it is the single most
+     * expensive thing to get wrong in either direction: live keys on staging
+     * charge real customers, test keys in production take orders that no money
+     * ever arrives for, and neither announces itself anywhere else.
+     */
+    protected static function stripeStatus(): string
+    {
+        $gateway = app(StripeGateway::class);
+
+        if (! $gateway->configured()) {
+            return 'Not configured — set STRIPE_KEY and STRIPE_SECRET in the server environment.';
+        }
+
+        $mode = $gateway->testMode()
+            ? 'TEST mode — no real money moves, and no real card will be charged.'
+            : 'LIVE mode — real cards will be charged.';
+
+        return $gateway->webhookReady()
+            ? "Configured. {$mode}"
+            : "Configured, but STRIPE_WEBHOOK_SECRET is missing — payments cannot be confirmed, "
+                ."so orders will stay in Pending Payment until they are marked paid by hand. {$mode}";
     }
 }

@@ -20,7 +20,13 @@ class OrderStatusHistory extends Model
 
     protected function casts(): array
     {
-        return ['notified_customer' => 'boolean'];
+        return [
+            'notified_customer' => 'boolean',
+            // Internal rows carry the payment provider's messages about money
+            // that went wrong. OrderResource filters them out of the customer
+            // timeline; the admin sees everything.
+            'is_internal' => 'boolean',
+        ];
     }
 
     public function order(): BelongsTo

@@ -161,6 +161,36 @@ class Order extends Model
         return 'order_number';
     }
 
+    /**
+     * Who may see this order.
+     *
+     * Order numbers are sequential and therefore guessable, so ownership is
+     * always proved: the order belongs to the signed-in customer, or the caller
+     * knows the email it was placed with. Guests check out without an account
+     * and still have to reach their own receipt, which is why the second route
+     * exists at all.
+     *
+     * One definition, used by every endpoint that exposes an order. Two copies
+     * of this rule would eventually disagree, and the disagreement would be a
+     * stranger reading someone's address.
+     */
+    public function canBeViewedBy(?User $user, ?string $email): bool
+    {
+        if ($user && $this->user_id === $user->id) {
+            return true;
+        }
+
+        return $email !== null && $email !== ''
+            && hash_equals(strtolower($this->email), strtolower($email));
+    }
+
+    /** Still waiting on money: the only state in which paying is meaningful. */
+    public function awaitingPayment(): bool
+    {
+        return $this->payment_status === self::PAYMENT_PENDING
+            && $this->fulfillment_status !== self::FULFILLMENT_CANCELLED;
+    }
+
     public function totalRefundedCents(): int
     {
         return (int) $this->refunds()->sum('amount_cents');

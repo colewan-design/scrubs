@@ -8,7 +8,13 @@ import {
   ShieldCheck,
   Truck,
 } from 'lucide-vue-next'
-import type { AddressInput, CheckoutQuote, Order, SavedAddress } from '~/composables/useApi'
+import type {
+  AddressInput,
+  CheckoutQuote,
+  Order,
+  PaymentSession,
+  SavedAddress,
+} from '~/composables/useApi'
 
 /**
  * Checkout (§4–§7).
@@ -183,9 +189,60 @@ const addressComplete = computed(() =>
     && address.province && address.postal_code),
 )
 
-const canPlace = computed(
-  () => Boolean(quote.value) && (isPickup.value || Boolean(selectedOption.value)),
+// --- payment ---------------------------------------------------------------
+
+/**
+ * Which methods exist is the server's decision, never this page's: it depends
+ * on credentials the browser must not see and on an admin switch. The page
+ * renders whatever comes back and nothing else.
+ */
+const paymentMethods = computed(() => quote.value?.payment_methods ?? [])
+const paymentMethod = ref<string | null>(null)
+
+watch(
+  paymentMethods,
+  (methods) => {
+    if (!methods.length) return
+
+    // Keep the customer's choice across re-quotes, unless an admin has just
+    // switched that method off underneath them.
+    if (!methods.some((m) => m.code === paymentMethod.value)) {
+      paymentMethod.value = methods[0]!.code
+    }
+  },
+  { immediate: true },
 )
+
+const selectedMethod = computed(
+  () => paymentMethods.value.find((m) => m.code === paymentMethod.value) ?? null,
+)
+
+/** A gateway method needs a card form and can fail; an offline one cannot. */
+const payingByCard = computed(() => selectedMethod.value?.kind === 'gateway')
+
+/**
+ * The card form has to mount before any payment exists, so the key comes with
+ * the quote rather than with the session. Publishable by design: it identifies
+ * the account to Stripe.js and authorises nothing.
+ */
+const stripePublicKey = computed(() => selectedMethod.value?.public_key ?? '')
+
+const stripeForm = ref<{
+  validate: () => Promise<string | null>
+  confirm: (clientSecret: string, returnUrl: string) => Promise<string | null>
+} | null>(null)
+
+const cardReady = ref(false)
+const cardBlocked = ref('')
+
+const canPlace = computed(() => {
+  if (!quote.value) return false
+  if (!isPickup.value && !selectedOption.value) return false
+
+  // The card form has to have mounted before the button means anything —
+  // otherwise the first click is a guaranteed "not ready yet".
+  return payingByCard.value ? cardReady.value && !cardBlocked.value : true
+})
 
 const steps = computed(() => [
   { label: 'Information', anchor: 'contact', done: /.+@.+\..+/.test(contact.email) },
@@ -224,16 +281,63 @@ const freeShippingPercent = computed(() => {
 
 // --- placing ---------------------------------------------------------------
 
+/** Where a customer lands once the order exists, paid or not. */
+function receiptUrl(order: Order, extra = ''): string {
+  return `/orders/${order.order_number}?email=${encodeURIComponent(order.email)}${extra}`
+}
+
+/**
+ * Place the order, then take the payment. In that order, and never the reverse.
+ *
+ * THE SEQUENCE, AND WHY IT IS THIS ONE
+ *
+ *  1. Validate the card first. It is the only step that is still free to fail:
+ *     a mistyped number caught here costs nothing, while the same mistake
+ *     caught later has already created an order holding stock.
+ *
+ *  2. Place the order. The server reserves stock and opens the payment.
+ *
+ *  3. Confirm the card against that payment.
+ *
+ * Once step 2 has succeeded the order EXISTS, and every path from here leads to
+ * its receipt — including the failures. A declined card must not strand a
+ * customer on a checkout page whose cart the server has already emptied; they
+ * go to the order, which offers a retry against the same order rather than
+ * letting them place a second one.
+ *
+ * Note what this function never does: mark anything paid. `confirm()` resolving
+ * means the customer finished, not that the money arrived. Only Stripe's
+ * webhook decides that.
+ */
 async function place() {
   errors.value = {}
   generalError.value = ''
+
+  if (payingByCard.value) {
+    const problem = await stripeForm.value?.validate()
+
+    if (problem) {
+      generalError.value = problem
+      goTo('payment')
+
+      return
+    }
+  }
+
   placing.value = true
 
+  let placed: Order | null = null
+
   try {
-    const { order } = await api.post<{ order: Order }>('/checkout', {
+    const response = await api.post<{
+      order: Order
+      payment?: PaymentSession
+      payment_error?: string
+    }>('/checkout', {
       ...contact,
       fulfillment_type: fulfillmentType.value,
       shipping_option: isPickup.value ? undefined : selectedOption.value,
+      payment_method: paymentMethod.value,
       // One phone field on the page: the contact number doubles as the
       // courier's, unless a saved address brought its own.
       shipping_address: isPickup.value
@@ -243,9 +347,46 @@ async function place() {
       billing_address: billingSame.value ? undefined : billing,
     })
 
+    placed = response.order
+
+    if (payingByCard.value) {
+      // The provider was unreachable when the order was placed. The order
+      // stands and holds its stock; the receipt page offers the retry.
+      if (!response.payment) {
+        await cart.refresh()
+        await navigateTo(receiptUrl(placed, '&payment=unavailable'))
+
+        return
+      }
+
+      const problem = await stripeForm.value?.confirm(
+        response.payment.client_secret,
+        // Absolute, and it has to be: Stripe redirects a 3-D Secure challenge
+        // back here from its own domain.
+        `${window.location.origin}${receiptUrl(placed)}`,
+      )
+
+      if (problem) {
+        await cart.refresh()
+        await navigateTo(receiptUrl(placed, '&payment=failed'))
+
+        return
+      }
+    }
+
     await cart.refresh()
-    await navigateTo(`/orders/${order.order_number}?email=${encodeURIComponent(order.email)}`)
+    await navigateTo(receiptUrl(placed))
   } catch (e: any) {
+    // Only reachable before the order exists — everything after step 2 routes
+    // to the receipt above. If an order did somehow get placed, send them to it
+    // rather than inviting a duplicate.
+    if (placed) {
+      await cart.refresh()
+      await navigateTo(receiptUrl(placed, '&payment=failed'))
+
+      return
+    }
+
     if (e?.data?.errors) errors.value = e.data.errors
     else generalError.value = e?.data?.message || 'Something went wrong. Please try again.'
   } finally {
@@ -828,25 +969,75 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
               <h2 class="font-body text-[16px] font-semibold text-ink-900">Payment</h2>
               <p class="mt-0.5 flex items-center gap-1.5 text-[13px] text-ink-500">
                 <Lock :size="12" aria-hidden="true" />
-                Nothing is charged on this page.
+                {{
+                  payingByCard
+                    ? 'Encrypted and handled by Stripe.'
+                    : 'Nothing is charged on this page.'
+                }}
               </p>
             </div>
           </div>
 
-          <!--
-            There is no card form here on purpose. No payment gateway is
-            connected — the merchant account is outstanding client material —
-            so a card field would collect a card number with nowhere to send
-            it. The order is placed as Pending Payment and settled out of band,
-            which is exactly how e-Transfer works anyway (§4).
-          -->
-          <div class="mt-4 rounded-sm border border-edge bg-surface-sunken p-4">
+          <!-- Method chooser. Hidden entirely when there is only one way to
+               pay: a radio group of one is a decision nobody has to make. -->
+          <fieldset v-if="paymentMethods.length > 1" class="mt-4">
+            <legend class="sr-only">Payment method</legend>
+            <div class="space-y-2">
+              <label
+                v-for="method in paymentMethods"
+                :key="method.code"
+                class="flex cursor-pointer gap-3 rounded-sm border p-3.5 transition-colors"
+                :class="
+                  paymentMethod === method.code
+                    ? 'border-ink-900 bg-surface-sunken'
+                    : 'border-edge hover:border-edge-strong/40'
+                "
+              >
+                <input
+                  v-model="paymentMethod"
+                  type="radio"
+                  name="payment-method"
+                  :value="method.code"
+                  class="mt-0.5 size-4 shrink-0 accent-ink-900"
+                >
+                <span class="min-w-0">
+                  <span class="block text-[14px] font-medium text-ink-900">{{ method.label }}</span>
+                  <span class="mt-0.5 block text-[12px] leading-relaxed text-ink-500">
+                    {{ method.description }}
+                  </span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- Card. The element mounts a Stripe-hosted iframe; no card number
+               ever touches this page or this server (§12, PCI SAQ-A). -->
+          <div v-if="payingByCard" class="mt-4">
+            <ClientOnly>
+              <CheckoutStripePayment
+                v-if="quote && selectedMethod && stripePublicKey"
+                ref="stripeForm"
+                :public-key="stripePublicKey"
+                :amount-cents="quote.grand_total.cents"
+                :test-mode="selectedMethod.test_mode"
+                @ready="cardReady = true"
+                @error="cardBlocked = $event"
+              />
+              <template #fallback>
+                <p class="py-6 text-center text-[13px] text-ink-500">Loading secure card form…</p>
+              </template>
+            </ClientOnly>
+          </div>
+
+          <!-- Offline methods: instructions, not a form. The order is placed as
+               Pending Payment and a human settles it (§4). -->
+          <div v-else class="mt-4 rounded-sm border border-edge bg-surface-sunken p-4">
             <p class="flex items-center gap-2.5 text-[14px] font-medium text-ink-900">
               <span
                 class="size-4 shrink-0 rounded-full border-[5px] border-ink-900"
                 aria-hidden="true"
               />
-              {{ quote?.etransfer ? 'Interac e-Transfer' : 'Payment on confirmation' }}
+              {{ selectedMethod?.label ?? 'Payment on confirmation' }}
             </p>
             <p class="mt-2 text-[13px] leading-relaxed text-ink-700">
               Your order is placed as
@@ -855,7 +1046,7 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
               automatically.
             </p>
             <p
-              v-if="quote?.etransfer?.instructions"
+              v-if="quote?.etransfer?.instructions && paymentMethod === 'etransfer'"
               class="mt-2 text-[13px] leading-relaxed whitespace-pre-line text-ink-700"
             >
               {{ quote.etransfer.instructions }}

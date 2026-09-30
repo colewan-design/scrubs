@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@pinia/nuxt": "^1.0.2",
+    "@stripe/stripe-js": "^9.16.0",
     "@tailwindcss/vite": "^4.3.3",
     "lucide-vue-next": "^1.0.0",
     "nuxt": "^4.5.2",

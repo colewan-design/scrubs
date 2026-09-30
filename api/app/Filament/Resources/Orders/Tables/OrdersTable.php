@@ -4,8 +4,10 @@ namespace App\Filament\Resources\Orders\Tables;
 
 use App\Filament\Support\CsvExportAction;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Shipment;
 use App\Services\Orders\OrderService;
+use App\Services\Payments\PaymentService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
@@ -24,6 +26,9 @@ class OrdersTable
     {
         return $table
             ->defaultSort('placed_at', 'desc')
+            // The refund action asks every row how it was paid. Loaded here so
+            // that is one query for the page rather than one per order.
+            ->modifyQueryUsing(fn ($query) => $query->with('payments'))
             ->columns([
                 TextColumn::make('order_number')
                     ->label('Order')
@@ -204,19 +209,37 @@ class OrdersTable
                     'Order cancelled and stock returned.'
                 )),
 
-            // Records money already returned to the customer — it does not move
-            // money itself. Once a processor is integrated the provider call
-            // goes in front of OrderService::refund(), not in place of it.
+            /*
+             * Refunding does two different jobs depending on how the order was
+             * paid, and the modal says which one is about to happen rather than
+             * leaving the administrator to work it out:
+             *
+             *   CARD  — Stripe is called, the money actually goes back, and the
+             *           reference recorded is Stripe's own refund id. There is
+             *           no field to type a reference into, because inventing
+             *           one would be the only way to get it wrong.
+             *
+             *   OTHER — e-Transfer and manual payments move money somewhere
+             *           this system cannot reach, so the administrator sends it
+             *           by hand first and records it here afterwards.
+             */
             Action::make('refund')
-                ->label('Record refund')
+                ->label(fn (Order $record) => self::refundsThroughGateway($record) ? 'Refund' : 'Record refund')
                 ->icon('heroicon-o-receipt-refund')
                 ->color('warning')
                 ->visible(fn (Order $record) => in_array($record->payment_status, [
                     Order::PAYMENT_PAID,
                     Order::PAYMENT_PARTIALLY_REFUNDED,
                 ], true) && $record->outstandingRefundableCents() > 0)
-                ->modalHeading(fn (Order $record) => "Record refund — {$record->order_number}")
-                ->modalDescription('Refund the customer through your payment provider first, then record it here.')
+                ->modalHeading(fn (Order $record) => self::refundsThroughGateway($record)
+                    ? "Refund — {$record->order_number}"
+                    : "Record refund — {$record->order_number}")
+                ->modalDescription(fn (Order $record) => self::refundsThroughGateway($record)
+                    ? 'This sends the money back through Stripe now. It cannot be undone.'
+                    : 'Refund the customer through your payment provider first, then record it here.')
+                ->modalSubmitActionLabel(fn (Order $record) => self::refundsThroughGateway($record)
+                    ? 'Send refund'
+                    : 'Record refund')
                 ->schema([
                     TextInput::make('amount')
                         ->label('Amount')
@@ -234,7 +257,8 @@ class OrdersTable
                     TextInput::make('provider_reference')
                         ->label('Provider reference')
                         ->maxLength(255)
-                        ->helperText('The refund ID from Stripe, PayPal or your bank, so the two records can be reconciled.'),
+                        ->visible(fn (Order $record) => ! self::refundsThroughGateway($record))
+                        ->helperText('The refund ID from PayPal or your bank, so the two records can be reconciled.'),
 
                     Toggle::make('restock')
                         ->label('Return items to stock')
@@ -247,12 +271,41 @@ class OrdersTable
                         (int) round(((float) $data['amount']) * 100),
                         $data['reason'] ?: null,
                         (bool) ($data['restock'] ?? true),
-                        $data['provider_reference'] ?: null,
+                        $data['provider_reference'] ?? null ?: null,
                         auth()->user(),
+                        self::refundsThroughGateway($record),
                     ),
-                    'Refund recorded.'
+                    self::refundsThroughGateway($record) ? 'Refund sent.' : 'Refund recorded.'
                 )),
         ];
+    }
+
+    /** @var array<int, bool> Per-request memo — see refundsThroughGateway(). */
+    protected static array $gatewayRefundable = [];
+
+    /**
+     * Whether this order's money can be sent back by API, or has to go by hand.
+     *
+     * Reads the payment that was actually taken, not the store's current
+     * settings: an order paid by card last month is still refundable through
+     * Stripe even if cards have since been switched off at checkout.
+     *
+     * Memoised because Filament evaluates a row action's label, visibility and
+     * three modal closures separately for every row on the page. Without the
+     * cache that is five queries per order, twenty orders at a time, to answer
+     * the same question each time.
+     */
+    protected static function refundsThroughGateway(Order $record): bool
+    {
+        return self::$gatewayRefundable[$record->id] ??= (function () use ($record): bool {
+            $payment = $record->payments
+                ->firstWhere('status', Payment::STATUS_SUCCEEDED)
+                ?? $record->payments->last();
+
+            return $payment !== null
+                && $payment->provider_reference !== null
+                && app(PaymentService::class)->isGateway($payment->provider);
+        })();
     }
 
     /**

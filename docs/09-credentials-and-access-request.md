@@ -111,8 +111,20 @@ created, and you revoke my access at handover with one click.
 | Webhook signing secret | Developers → Webhooks → add endpoint | `whsec_...` |
 
 **Please send the test keys first** (`pk_test_` / `sk_test_`). They are available the moment the
-account exists, and checkout can be built and tested on them while the live account is under review —
-that is how the approval wait gets absorbed instead of delaying launch.
+account exists. **The card checkout is already built and tested** — it needs nothing but keys, so
+test keys turn it on the same day they arrive, and the live-account approval wait is absorbed
+instead of delaying launch.
+
+**The webhook is not optional.** Add the endpoint at Developers → Webhooks:
+
+```
+https://bulkscrubsdirect.ca/api/v1/webhooks/stripe
+```
+
+subscribed to `payment_intent.succeeded`, `payment_intent.payment_failed` and `charge.refunded`,
+then send its signing secret. Without it nothing is ever marked paid — the browser does not decide
+that, a signed event from Stripe does — and every order would sit in *Pending Payment* until
+somebody marked it by hand.
 
 **Also confirm:** the statement descriptor customers see on their card statement, max 22 characters
 (recommended: `BULKSCRUBS DIRECT`), and whether to enable Apple Pay, Google Pay and PayPal in CAD.

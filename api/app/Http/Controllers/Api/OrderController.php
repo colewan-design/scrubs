@@ -43,17 +43,14 @@ class OrderController extends Controller
      */
     public function show(Request $request, Order $order): JsonResponse
     {
-        $user = $request->user();
-
-        $ownsIt = $user && $order->user_id === $user->id;
-        $knowsEmail = $request->filled('email')
-            && hash_equals(strtolower($order->email), strtolower((string) $request->query('email')));
-
-        abort_unless($ownsIt || $knowsEmail, 404);
+        abort_unless(
+            $order->canBeViewedBy($request->user(), (string) $request->query('email')),
+            404,
+        );
 
         return response()->json([
             'order' => OrderResource::make($order->load([
-                'items.variant.product.images', 'taxes', 'addresses', 'shipments', 'statusHistory',
+                'items.variant.product.images', 'taxes', 'addresses', 'shipments', 'statusHistory', 'payments',
             ]))->toArray($request),
         ]);
     }

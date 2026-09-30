@@ -22,6 +22,12 @@ class Settings
         'shipping.provider' => 'table_rate',
         'orders.reservation_ttl_minutes' => 20,
         'orders.etransfer_enabled' => false,
+
+        // §4. Off by default and deliberately independent of whether Stripe
+        // keys are present: pasting a key into .env must not silently start
+        // charging cards, and switching this on with no key must not offer a
+        // card form with nothing behind it. PaymentService requires both.
+        'payments.card_enabled' => false,
         'orders.etransfer_instructions' => '',
         'orders.number_prefix' => 'BSD-',
         'orders.number_start' => 10000,

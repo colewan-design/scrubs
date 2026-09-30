@@ -12,6 +12,7 @@ use App\Models\Refund;
 use App\Models\User;
 use App\Services\CartService;
 use App\Services\Notifications\OrderNotifier;
+use App\Services\Payments\PaymentService;
 use App\Services\Pricing\PriceQuote;
 use App\Services\Shipping\Destination;
 use App\Services\Shipping\Parcel;
@@ -55,6 +56,7 @@ class OrderService
         protected ShippingService $shipping,
         protected Settings $settings,
         protected OrderNotifier $notifier,
+        protected PaymentService $payments,
     ) {}
 
     /**
@@ -97,8 +99,13 @@ class OrderService
             $option->costCents,
         );
 
+        // Resolved against what is actually switched on, not against what the
+        // client asked for — a request naming a method the store does not offer
+        // must not create a payment row nobody can settle.
+        $paymentMethod = $this->payments->resolveMethod($input['payment_method'] ?? null);
+
         $order = DB::transaction(function () use (
-            $cart, $user, $input, $quote, $option, $taxQuote, $isPickup, $shippingAddress
+            $cart, $user, $input, $quote, $option, $taxQuote, $isPickup, $shippingAddress, $paymentMethod
         ) {
             $this->reserveStock($quote);
 
@@ -146,7 +153,7 @@ class OrderService
                 $input['billing_address'] ?? $shippingAddress ?? []
             );
 
-            $this->writePayment($order, $input['payment_method'] ?? Payment::PROVIDER_ETRANSFER);
+            $this->writePayment($order, $paymentMethod);
 
             $this->recordHistory($order, null, $order->status, 'Order placed.');
 
@@ -173,6 +180,18 @@ class OrderService
     {
         if ($order->payment_status === Order::PAYMENT_PAID) {
             return $order;
+        }
+
+        // A payment can still land on a cancelled order: the customer had a
+        // stale checkout tab open when the reservation sweeper released it.
+        // Committing stock here would decrement inventory that was already
+        // returned, so this refuses and the caller deals with the money —
+        // StripeWebhookController flags it for a refund rather than swallowing
+        // the event.
+        if ($order->fulfillment_status === Order::FULFILLMENT_CANCELLED) {
+            throw new RuntimeException(
+                "Order {$order->order_number} was cancelled and cannot be marked paid."
+            );
         }
 
         $order = DB::transaction(function () use ($order, $payment, $actor) {
@@ -211,7 +230,9 @@ class OrderService
             throw new RuntimeException('A shipped or completed order cannot be cancelled.');
         }
 
-        return DB::transaction(function () use ($order, $reason, $actor) {
+        $wasUnpaid = $order->payment_status !== Order::PAYMENT_PAID;
+
+        $order = DB::transaction(function () use ($order, $reason, $actor) {
             $order->payment_status === Order::PAYMENT_PAID
                 ? $this->restock($order, InventoryMovement::REASON_CANCELLATION)
                 : $this->releaseReservation($order);
@@ -229,16 +250,37 @@ class OrderService
 
             return $order;
         });
+
+        // After the commit, and never inside it: this is a network call, and a
+        // provider timing out must not roll back a cancellation that has
+        // already returned the stock. The stranded-intent risk it leaves is
+        // covered on the other side — markPaid refuses a cancelled order.
+        if ($wasUnpaid) {
+            $this->payments->abandon($order->load('payments'));
+        }
+
+        return $order;
     }
 
     /**
-     * Record a refund against a paid order (§9).
+     * Refund a paid order (§9).
      *
-     * This records money already returned through the payment provider (or by
-     * hand, for e-Transfer) — it does not itself move money. Once a processor is
-     * integrated the provider call belongs in front of this, with its reference
-     * passed in, so the ledger here stays the single account of what was
-     * returned.
+     * Two modes, and the difference matters:
+     *
+     *   $throughGateway = true  — actually send the money back through the
+     *     provider, then record what it confirmed. The provider's own refund id
+     *     becomes the ledger reference, so the two sides reconcile.
+     *
+     *   $throughGateway = false — record money already returned by other means:
+     *     an e-Transfer sent by hand, or a refund issued from the Stripe
+     *     dashboard and arriving here through the webhook. Moves no money.
+     *
+     * ORDER OF OPERATIONS. Validation first, then the provider call, then the
+     * ledger — and the provider call sits OUTSIDE the transaction. Holding a
+     * database transaction open across a network round trip locks the order row
+     * for as long as the provider takes to answer, and a refund that succeeds
+     * at the provider while the transaction rolls back is money gone with no
+     * record of it. Better to write the ledger a moment late than to lose it.
      *
      * A partial refund leaves the order payable-complete but marks it
      * partially_refunded; refunding the full total moves it to Refunded.
@@ -250,6 +292,7 @@ class OrderService
         bool $restock = true,
         ?string $providerReference = null,
         ?User $actor = null,
+        bool $throughGateway = false,
     ): Refund {
         if ($order->payment_status !== Order::PAYMENT_PAID
             && $order->payment_status !== Order::PAYMENT_PARTIALLY_REFUNDED) {
@@ -268,13 +311,17 @@ class OrderService
             );
         }
 
-        return DB::transaction(function () use ($order, $amountCents, $reason, $restock, $providerReference, $actor) {
-            $payment = $order->payments()
-                ->where('status', Payment::STATUS_SUCCEEDED)
-                ->latest('id')
-                ->first()
-                ?? $order->payments()->latest('id')->firstOrFail();
+        $payment = $this->refundablePayment($order);
 
+        if ($throughGateway) {
+            // Throws on refusal, which aborts before anything is written — a
+            // declined refund must not leave a ledger row claiming it happened.
+            $providerReference = $this->payments
+                ->refund($payment, $amountCents, $reason)
+                ->reference;
+        }
+
+        return DB::transaction(function () use ($order, $payment, $amountCents, $reason, $restock, $providerReference, $actor, $throughGateway) {
             $refund = $order->refunds()->create([
                 'payment_id' => $payment->id,
                 'amount_cents' => $amountCents,
@@ -308,10 +355,13 @@ class OrderService
                 $order,
                 $from,
                 $order->status,
+                // "sent" and "recorded" are not the same claim, and the audit
+                // trail is the wrong place to blur them.
                 sprintf(
-                    '%s refund of $%s recorded.%s',
+                    '%s refund of $%s %s.%s',
                     $isFull ? 'Full' : 'Partial',
                     number_format($amountCents / 100, 2),
+                    $throughGateway ? 'sent via '.$payment->provider : 'recorded',
                     $reason ? " {$reason}" : '',
                 ),
                 $actor,
@@ -407,6 +457,20 @@ class OrderService
     }
 
     // ---------------------------------------------------------------- internals
+
+    /**
+     * The payment a refund should be taken against: the one that actually
+     * succeeded, falling back to the most recent row so an order settled by
+     * hand is still refundable.
+     */
+    protected function refundablePayment(Order $order): Payment
+    {
+        return $order->payments()
+            ->where('status', Payment::STATUS_SUCCEEDED)
+            ->latest('id')
+            ->first()
+            ?? $order->payments()->latest('id')->firstOrFail();
+    }
 
     protected function resolveShippingOption(
         array $input,
@@ -562,9 +626,12 @@ class OrderService
     }
 
     /**
-     * e-Transfer is an offline method, not an integration: the order sits in
-     * Pending Payment until an administrator marks it paid (§4). A card
-     * provider slots in here as another row with its own reference.
+     * Every order gets a pending payment row, whatever the method.
+     *
+     * For a card that row is what StripeGateway attaches its intent to, and
+     * what the webhook finds again when the money lands. For e-Transfer it is
+     * simply the thing an administrator marks paid. Both sit in Pending Payment
+     * until something confirms them — the difference is only who confirms.
      */
     protected function writePayment(Order $order, string $method): void
     {
@@ -573,7 +640,7 @@ class OrderService
             'method' => $method,
             'status' => Payment::STATUS_PENDING,
             'amount_cents' => $order->grand_total_cents,
-            'currency' => 'CAD',
+            'currency' => $order->currency ?: 'CAD',
         ]);
     }
 

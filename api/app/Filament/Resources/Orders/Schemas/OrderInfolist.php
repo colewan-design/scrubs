@@ -99,17 +99,51 @@ class OrderInfolist
                         ]),
                 ]),
 
+            /*
+             * How the money moved. This is the screen someone opens when a
+             * customer says they were charged twice, or when a chargeback
+             * arrives — so it carries the provider's own reference, which is
+             * the only thing that reconciles this order against the Stripe
+             * dashboard. Card brand and last four are the whole of what is
+             * stored about the card itself (§12).
+             */
+            Section::make('Payment')
+                ->schema([
+                    RepeatableEntry::make('payments')
+                        ->hiddenLabel()
+                        ->columns(4)
+                        ->schema([
+                            TextEntry::make('provider')->label('Provider'),
+                            TextEntry::make('status')->label('Status'),
+                            TextEntry::make('card_last_four')
+                                ->label('Card')
+                                ->placeholder('—')
+                                ->formatStateUsing(fn ($state, $record) => $state
+                                    ? trim(($record->card_brand ?? '').' •••• '.$state)
+                                    : '—'),
+                            TextEntry::make('provider_reference')
+                                ->label('Reference')
+                                ->placeholder('—')
+                                ->copyable(),
+                        ]),
+                ]),
+
             Section::make('History')
-                ->description('Every status change, and who made it.')
+                ->description('Every status change, and who made it. Rows marked Internal are never shown to the customer.')
                 ->schema([
                     RepeatableEntry::make('statusHistory')
                         ->hiddenLabel()
-                        ->columns(3)
+                        ->columns(4)
                         ->schema([
                             TextEntry::make('to_status')
                                 ->label('Status')
                                 ->formatStateUsing(fn (string $state) => Order::STATUS_LABELS[$state] ?? $state),
                             TextEntry::make('note')->label('Note')->placeholder('—'),
+                            TextEntry::make('is_internal')
+                                ->label('Visibility')
+                                ->badge()
+                                ->formatStateUsing(fn ($state) => $state ? 'Internal' : 'Customer')
+                                ->color(fn ($state) => $state ? 'warning' : 'gray'),
                             TextEntry::make('created_at')->label('When')->dateTime('d M Y, H:i'),
                         ]),
                 ]),
