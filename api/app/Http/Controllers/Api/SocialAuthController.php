@@ -43,7 +43,10 @@ class SocialAuthController extends Controller
     /** Providers with a slot in config/services.php. */
     protected const SUPPORTED = ['google'];
 
-    public function redirect(string $provider): RedirectResponse
+    /** Session key holding where to send the customer once they are back. */
+    protected const RETURN_TO = 'social_auth.return_to';
+
+    public function redirect(string $provider, Request $request): RedirectResponse
     {
         abort_unless(in_array($provider, self::SUPPORTED, true), 404);
 
@@ -52,6 +55,17 @@ class SocialAuthController extends Controller
                 'unavailable',
                 ucfirst($provider).' sign-in is not configured yet.',
             );
+        }
+
+        // Checkout sends a signed-out customer here with ?redirect=/checkout, and
+        // they should land back on checkout, not the account home. Remembered in
+        // the session because Google will not carry it through the round trip.
+        if ($request->hasSession()) {
+            $returnTo = $this->safeReturnPath($request->query('redirect'));
+
+            $returnTo === null
+                ? $request->session()->forget(self::RETURN_TO)
+                : $request->session()->put(self::RETURN_TO, $returnTo);
         }
 
         return Socialite::driver($provider)->redirect();
@@ -90,13 +104,34 @@ class SocialAuthController extends Controller
 
         Auth::login($user, remember: true);
 
+        $returnTo = null;
+
         if ($request->hasSession()) {
+            $returnTo = $request->session()->pull(self::RETURN_TO);
             $request->session()->regenerate();
         }
 
         $user->forceFill(['last_login_at' => now()])->save();
 
-        return $this->backToStorefront();
+        return $this->backToStorefront(returnTo: $this->safeReturnPath($returnTo));
+    }
+
+    /**
+     * Only a path on our own storefront. Anything else — a full URL, or a
+     * protocol-relative "//evil.test" — would turn sign-in into an open
+     * redirect, so it is dropped rather than followed.
+     */
+    protected function safeReturnPath(mixed $path): ?string
+    {
+        if (! is_string($path) || $path === '' || strlen($path) > 500) {
+            return null;
+        }
+
+        if ($path[0] !== '/' || str_starts_with($path, '//') || str_contains($path, '\\')) {
+            return null;
+        }
+
+        return $path;
     }
 
     /**
@@ -198,12 +233,15 @@ class SocialAuthController extends Controller
      * storefront — success silently, failure with a code the sign-in page can
      * turn into a message.
      */
-    protected function backToStorefront(?string $error = null, ?string $message = null): RedirectResponse
-    {
+    protected function backToStorefront(
+        ?string $error = null,
+        ?string $message = null,
+        ?string $returnTo = null,
+    ): RedirectResponse {
         $base = rtrim(config('app.frontend_url'), '/');
 
         if ($error === null) {
-            return redirect()->away($base.'/account');
+            return redirect()->away($base.($returnTo ?? '/account'));
         }
 
         return redirect()->away(

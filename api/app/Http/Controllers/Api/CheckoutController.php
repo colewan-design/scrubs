@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\MoneyResource;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Services\CartService;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentException;
 use App\Services\Payments\PaymentService;
+use App\Services\Payments\PayPalService;
 use App\Services\Shipping\Destination;
 use App\Services\Shipping\Parcel;
 use App\Services\Shipping\ShippingService;
@@ -37,6 +39,7 @@ class CheckoutController extends Controller
         protected TaxService $tax,
         protected Settings $settings,
         protected PaymentService $payments,
+        protected PayPalService $paypal,
     ) {}
 
     /** Shipping options and tax for a destination, before anything is committed. */
@@ -121,6 +124,11 @@ class CheckoutController extends Controller
             // credentials plus the admin switch. The storefront renders this
             // list rather than deciding for itself which methods exist.
             'payment_methods' => $this->payments->availableMethods(),
+            // PayPal is reported separately because it is not a PaymentGateway:
+            // the button is driven by PayPal's own JS SDK, which needs the
+            // client id. That id is public by design — it is what the SDK is
+            // loaded with — but the secret never leaves the server.
+            'paypal' => $this->paypal->publicConfig(),
         ]);
     }
 
@@ -135,7 +143,10 @@ class CheckoutController extends Controller
             'customer_note' => ['nullable', 'string', 'max:2000'],
             'fulfillment_type' => ['nullable', Rule::in([Order::TYPE_SHIP, Order::TYPE_PICKUP])],
             'shipping_option' => [Rule::requiredIf(! $isPickup), 'string', 'max:64'],
-            'payment_method' => ['nullable', 'string', 'max:40'],
+            // Constrained rather than free text: this string becomes the payment
+            // row's provider, and an unrecognised one would create an order that
+            // nothing knows how to settle.
+            'payment_method' => ['nullable', Rule::in(Payment::CHECKOUT_PROVIDERS)],
 
             'shipping_address' => [Rule::requiredIf(! $isPickup), 'array'],
             'shipping_address.first_name' => [Rule::requiredIf(! $isPickup), 'string', 'max:80'],
@@ -151,6 +162,18 @@ class CheckoutController extends Controller
 
             'billing_address' => ['nullable', 'array'],
         ]);
+
+        // Asking to pay by PayPal while it is switched off would place an order
+        // the customer then has no way to settle, so it is refused up front
+        // rather than silently downgraded to e-Transfer.
+        $wantsPayPal = ($data['payment_method'] ?? null) === Payment::PROVIDER_PAYPAL;
+
+        if ($wantsPayPal && ! $this->paypal->enabled()) {
+            return response()->json([
+                'message' => 'PayPal is not available at the moment. Please choose another payment method.',
+                'errors' => ['payment_method' => ['PayPal is currently unavailable.']],
+            ], 422);
+        }
 
         $cart = $this->carts->resolve($request->user(), $request->header('X-Cart-Token'));
 
@@ -180,12 +203,37 @@ class CheckoutController extends Controller
             $paymentError = $e->getMessage();
         }
 
-        return response()->json(array_filter([
+        $payload = [
             'order' => OrderResource::make($order->load([
                 'items', 'taxes', 'addresses', 'statusHistory', 'payments',
             ]))->toArray($request),
-            'payment' => $session?->toArray(),
-            'payment_error' => $paymentError,
-        ], fn ($v) => $v !== null), 201);
+        ];
+
+        if ($session !== null) {
+            $payload['payment'] = $session->toArray();
+        }
+
+        if ($paymentError !== null) {
+            $payload['payment_error'] = $paymentError;
+        }
+
+        // PayPal is not a PaymentGateway, so prepare() above returns null for
+        // it and the order is opened against PayPal here instead — in the same
+        // response, so the buttons have an id to hand the SDK without a second
+        // round trip.
+        if ($wantsPayPal) {
+            try {
+                $payload['paypal'] = ['order_id' => $this->paypal->createOrderFor($order)];
+            } catch (RuntimeException $e) {
+                // Deliberately still a 201. The order is placed and priced; only
+                // the payment handover failed. Reporting an error here would
+                // leave the customer thinking nothing happened while their stock
+                // is reserved and the admin can see the order.
+                $payload['paypal'] = null;
+                $payload['payment_error'] = $e->getMessage();
+            }
+        }
+
+        return response()->json($payload, 201);
     }
 }

@@ -75,6 +75,17 @@ class StripePaymentsTest extends TestCase
 
     protected ?string $cartToken = null;
 
+    protected ?User $shopper = null;
+
+    /**
+     * Checkout requires an account, so every order below is placed by one.
+     * Reused across a test so the same customer keeps the same cart.
+     */
+    protected function shopper(): User
+    {
+        return $this->shopper ??= User::factory()->create(['email' => 'dana@example.com']);
+    }
+
     protected function variant(int $priceCents = 5000, int $stock = 10): ProductVariant
     {
         return ProductVariant::factory()
@@ -94,10 +105,10 @@ class StripePaymentsTest extends TestCase
     {
         $this->addToCart($variant, $qty);
 
-        $quote = $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+        $quote = $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
             ->postJson('/api/v1/checkout/quote', ['province' => 'ON']);
 
-        $response = $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+        $response = $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
             ->postJson('/api/v1/checkout', [
                 'email' => 'dana@example.com',
                 'payment_method' => 'stripe',
@@ -163,7 +174,7 @@ class StripePaymentsTest extends TestCase
         $this->addToCart($this->variant());
 
         $offered = fn () => collect(
-            $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+            $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
                 ->postJson('/api/v1/checkout/quote', ['province' => 'ON'])
                 ->json('payment_methods')
         )->pluck('code')->all();
@@ -183,7 +194,7 @@ class StripePaymentsTest extends TestCase
     {
         $this->addToCart($this->variant());
 
-        $response = $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+        $response = $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
             ->postJson('/api/v1/checkout/quote', ['province' => 'ON']);
 
         $card = collect($response->json('payment_methods'))->firstWhere('code', 'stripe');
@@ -222,10 +233,10 @@ class StripePaymentsTest extends TestCase
 
         $this->addToCart($this->variant());
 
-        $quote = $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+        $quote = $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
             ->postJson('/api/v1/checkout/quote', ['province' => 'ON']);
 
-        $response = $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+        $response = $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
             ->postJson('/api/v1/checkout', [
                 'email' => 'dana@example.com',
                 'payment_method' => 'stripe',
@@ -509,10 +520,10 @@ class StripePaymentsTest extends TestCase
         $variant = $this->variant(5000, 10);
         $this->addToCart($variant, 2);
 
-        $quote = $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+        $quote = $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
             ->postJson('/api/v1/checkout/quote', ['province' => 'ON']);
 
-        $this->withHeaders(['X-Cart-Token' => $this->cartToken])
+        $this->actingAs($this->shopper())->withHeaders(['X-Cart-Token' => $this->cartToken])
             ->postJson('/api/v1/checkout', [
                 'email' => 'dana@example.com',
                 'payment_method' => 'etransfer',
@@ -541,14 +552,17 @@ class StripePaymentsTest extends TestCase
 
         $originalReference = $order->payments()->first()->provider_reference;
 
-        // A stranger who guesses the order number gets nothing.
-        $this->postJson("/api/v1/orders/{$order->order_number}/payment", [
-            'email' => 'someone-else@example.com',
-        ])->assertNotFound();
+        // Someone else who guesses the order number gets nothing — neither the
+        // account nor the email matches, which is the whole of the proof.
+        $this->actingAs(User::factory()->create(['email' => 'someone-else@example.com']))
+            ->postJson("/api/v1/orders/{$order->order_number}/payment", [
+                'email' => 'someone-else@example.com',
+            ])->assertNotFound();
 
-        $this->postJson("/api/v1/orders/{$order->order_number}/payment", [
-            'email' => $order->email,
-        ])->assertOk()->assertJsonPath('payment.reference', $originalReference);
+        $this->actingAs($this->shopper())
+            ->postJson("/api/v1/orders/{$order->order_number}/payment", [
+                'email' => $order->email,
+            ])->assertOk()->assertJsonPath('payment.reference', $originalReference);
 
         // One payment, not two: a reload must not open a second authorisation.
         $this->assertSame(1, $order->payments()->count());
@@ -569,13 +583,10 @@ class StripePaymentsTest extends TestCase
     /** A member's own order still works without the email proof. */
     public function test_a_signed_in_customer_can_retry_their_own_order(): void
     {
-        $user = User::factory()->create();
         $variant = $this->variant(5000, 10);
-
-        $this->actingAs($user);
         [, $order] = $this->placeCardOrder($variant, 1);
 
-        $this->actingAs($user)
+        $this->actingAs($this->shopper())
             ->postJson("/api/v1/orders/{$order->order_number}/payment")
             ->assertOk();
     }

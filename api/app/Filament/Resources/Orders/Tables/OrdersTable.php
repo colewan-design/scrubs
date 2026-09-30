@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Shipment;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentService;
+use App\Services\Payments\PayPalService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
@@ -210,34 +211,42 @@ class OrdersTable
                 )),
 
             /*
-             * Refunding does two different jobs depending on how the order was
+             * Refunding does three different jobs depending on how the order was
              * paid, and the modal says which one is about to happen rather than
              * leaving the administrator to work it out:
              *
-             *   CARD  — Stripe is called, the money actually goes back, and the
-             *           reference recorded is Stripe's own refund id. There is
-             *           no field to type a reference into, because inventing
-             *           one would be the only way to get it wrong.
+             *   CARD   — Stripe is called and the money actually goes back.
              *
-             *   OTHER — e-Transfer and manual payments move money somewhere
-             *           this system cannot reach, so the administrator sends it
-             *           by hand first and records it here afterwards.
+             *   PAYPAL — PayPal is called the same way. The provider call goes
+             *            in front of OrderService::refund(), which still writes
+             *            the ledger row and returns the stock.
+             *
+             *   OTHER  — e-Transfer and manual payments move money somewhere
+             *            this system cannot reach, so the administrator sends it
+             *            by hand first and records it here afterwards.
+             *
+             * In the first two there is no field to type a reference into: the
+             * provider issues it, and inventing one would be the only way to get
+             * it wrong. "Record a refund" and "refund the customer" are very
+             * different actions to take by mistake, hence the wording changes.
              */
             Action::make('refund')
-                ->label(fn (Order $record) => self::refundsThroughGateway($record) ? 'Refund' : 'Record refund')
+                ->label(fn (Order $record) => self::refundsAutomatically($record) ? 'Refund' : 'Record refund')
                 ->icon('heroicon-o-receipt-refund')
                 ->color('warning')
                 ->visible(fn (Order $record) => in_array($record->payment_status, [
                     Order::PAYMENT_PAID,
                     Order::PAYMENT_PARTIALLY_REFUNDED,
                 ], true) && $record->outstandingRefundableCents() > 0)
-                ->modalHeading(fn (Order $record) => self::refundsThroughGateway($record)
+                ->modalHeading(fn (Order $record) => self::refundsAutomatically($record)
                     ? "Refund — {$record->order_number}"
                     : "Record refund — {$record->order_number}")
-                ->modalDescription(fn (Order $record) => self::refundsThroughGateway($record)
-                    ? 'This sends the money back through Stripe now. It cannot be undone.'
-                    : 'Refund the customer through your payment provider first, then record it here.')
-                ->modalSubmitActionLabel(fn (Order $record) => self::refundsThroughGateway($record)
+                ->modalDescription(fn (Order $record) => match (true) {
+                    self::refundsViaPayPal($record) => 'This sends the refund through PayPal now and returns the money to the customer. It cannot be undone.',
+                    self::refundsThroughGateway($record) => 'This sends the money back through Stripe now. It cannot be undone.',
+                    default => 'Refund the customer through your payment provider first, then record it here.',
+                })
+                ->modalSubmitActionLabel(fn (Order $record) => self::refundsAutomatically($record)
                     ? 'Send refund'
                     : 'Record refund')
                 ->schema([
@@ -254,29 +263,55 @@ class OrdersTable
 
                     Textarea::make('reason')->label('Reason')->rows(2)->maxLength(500),
 
+                    // Hidden whenever the provider issues the reference itself —
+                    // a typed-in one would just be a second, unreliable record
+                    // of the same thing.
                     TextInput::make('provider_reference')
                         ->label('Provider reference')
                         ->maxLength(255)
-                        ->visible(fn (Order $record) => ! self::refundsThroughGateway($record))
-                        ->helperText('The refund ID from PayPal or your bank, so the two records can be reconciled.'),
+                        ->visible(fn (Order $record) => ! self::refundsAutomatically($record))
+                        ->helperText('The refund ID from your bank or provider, so the two records can be reconciled.'),
 
                     Toggle::make('restock')
                         ->label('Return items to stock')
                         ->default(true)
                         ->helperText('Turn this off if the goods are not coming back — damaged or a goodwill refund.'),
                 ])
-                ->action(fn (Order $record, array $data) => self::run(
-                    fn () => app(OrderService::class)->refund(
-                        $record,
-                        (int) round(((float) $data['amount']) * 100),
-                        $data['reason'] ?: null,
-                        (bool) ($data['restock'] ?? true),
-                        $data['provider_reference'] ?? null ?: null,
-                        auth()->user(),
-                        self::refundsThroughGateway($record),
-                    ),
-                    self::refundsThroughGateway($record) ? 'Refund sent.' : 'Refund recorded.'
-                )),
+                ->action(function (Order $record, array $data) {
+                    $amountCents = (int) round(((float) $data['amount']) * 100);
+                    $reason = $data['reason'] ?: null;
+                    $restock = (bool) ($data['restock'] ?? true);
+
+                    // PayPal has its own service rather than a PaymentGateway,
+                    // so it is dispatched before the generic path. The two
+                    // predicates cannot both be true: PaymentService registers
+                    // Stripe only.
+                    if (self::refundsViaPayPal($record)) {
+                        self::run(
+                            fn () => app(PayPalService::class)->refund(
+                                $record, $amountCents, $reason, $restock, auth()->user(),
+                            ),
+                            'Refunded through PayPal and recorded.'
+                        );
+
+                        return;
+                    }
+
+                    $throughGateway = self::refundsThroughGateway($record);
+
+                    self::run(
+                        fn () => app(OrderService::class)->refund(
+                            $record,
+                            $amountCents,
+                            $reason,
+                            $restock,
+                            $data['provider_reference'] ?? null ?: null,
+                            auth()->user(),
+                            $throughGateway,
+                        ),
+                        $throughGateway ? 'Refund sent.' : 'Refund recorded.'
+                    );
+                }),
         ];
     }
 
@@ -306,6 +341,33 @@ class OrdersTable
                 && $payment->provider_reference !== null
                 && app(PaymentService::class)->isGateway($payment->provider);
         })();
+    }
+
+    /**
+     * Whether the refund button moves money, rather than recording money the
+     * administrator has already moved by hand.
+     *
+     * True for either provider. Kept separate from the two predicates below
+     * because the wording of the button, the modal and the reference field all
+     * turn on this one question, while only the action itself needs to know
+     * which provider is about to be called.
+     */
+    protected static function refundsAutomatically(Order $record): bool
+    {
+        return self::refundsViaPayPal($record) || self::refundsThroughGateway($record);
+    }
+
+    /**
+     * Whether this order can be refunded through PayPal, which needs a captured
+     * PayPal payment to refund against — not merely an order that was *going* to
+     * be paid that way.
+     */
+    protected static function refundsViaPayPal(Order $order): bool
+    {
+        return $order->payments
+            ->where('provider', Payment::PROVIDER_PAYPAL)
+            ->where('status', Payment::STATUS_SUCCEEDED)
+            ->contains(fn (Payment $payment) => $payment->paypalCaptureId() !== null);
     }
 
     /**

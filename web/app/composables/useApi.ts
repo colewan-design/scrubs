@@ -187,16 +187,29 @@ export interface CheckoutQuote {
   pickup: { address: string; hours: string; lead_time: string } | null
   etransfer: { instructions: string } | null
   payment_methods: PaymentMethod[]
+  /**
+   * Present only when PayPal is both configured and switched on in admin, so
+   * the page can render the button without knowing anything about the server's
+   * configuration. `client_id` is public by design — it is what the PayPal JS
+   * SDK is loaded with; the secret never leaves Laravel.
+   */
+  paypal: { client_id: string; mode: 'live' | 'sandbox'; currency: string } | null
 }
 
 /**
- * A way to pay, as decided by the server. `kind` is the part that matters to
- * the page: a gateway method needs a card form and can fail, an offline one is
- * instructions and cannot.
+ * A way to pay. `kind` is the part that matters to the page:
+ *
+ *   gateway  — needs a card form on our page, and can fail there.
+ *   external — the provider runs its own widget and takes the payment itself.
+ *   offline   — instructions, not a form. Cannot fail at checkout.
+ *
+ * The gateway and offline methods come from the server's `payment_methods`.
+ * PayPal is `external` and is assembled on the page from `quote.paypal`,
+ * because server-side it is not a PaymentGateway.
  */
 export interface PaymentMethod {
-  code: 'stripe' | 'etransfer' | 'manual'
-  kind: 'gateway' | 'offline'
+  code: 'stripe' | 'paypal' | 'etransfer' | 'manual'
+  kind: 'gateway' | 'external' | 'offline'
   label: string
   description: string
   /** Publishable key, present on gateway methods only. Authorises nothing. */

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ContentController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PayPalController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\StripeWebhookController;
@@ -80,13 +81,17 @@ Route::get('/content/store', [ContentController::class, 'store']);
 Route::get('/content/policies/{slug}', [ContentController::class, 'policy']);
 
 // ---- Checkout (§4, §5, §6, §7) ---------------------------------------------
-// Guests may check out: an account is what unlocks wholesale pricing, not what
-// permits a purchase. Both endpoints price server-side from the cart.
-Route::post('/checkout/quote', [CheckoutController::class, 'quote']);
-Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:12,1');
+// Checking out needs a customer account (email + password or Google). A guest
+// can still fill a cart; it carries over when they sign in. Both endpoints
+// price server-side from the cart.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/checkout/quote', [CheckoutController::class, 'quote']);
+    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:12,1');
+});
 
 // Order lookup proves ownership itself — signed-in owner, or the email the
-// order was placed with — so a guest can see their own confirmation.
+// order was placed with — so orders placed as a guest before checkout needed an
+// account stay readable.
 Route::get('/orders/{order}', [OrderController::class, 'show']);
 
 // Re-open the payment for an order already placed: a retry after the provider
@@ -102,6 +107,23 @@ Route::post('/orders/{order}/payment', [PaymentController::class, 'session'])
 // Never throttled: Stripe retries a rejected delivery for days, and a 429 here
 // would look to it exactly like an outage.
 Route::post('/webhooks/stripe', StripeWebhookController::class);
+
+// ---- PayPal (§4) -----------------------------------------------------------
+// Left public so an order placed as a guest before checkout needed an account
+// can still be paid for. Both prove ownership of the named order inside the
+// controller, and neither accepts an amount — the total is read from the order.
+//
+// Throttled harder than checkout: these reach an external payment API, so an
+// unthrottled loop here is a way to burn our PayPal rate limit.
+Route::middleware('throttle:20,1')->group(function () {
+    Route::post('/orders/{order}/paypal/create', [PayPalController::class, 'create']);
+    Route::post('/orders/{order}/paypal/capture', [PayPalController::class, 'capture']);
+});
+
+// PayPal's server-to-server notification. Unauthenticated by necessity —
+// PayPal has no session — and verified by signature instead. It carries no
+// Origin, so Sanctum leaves it stateless and CSRF does not apply.
+Route::post('/webhooks/paypal', [PayPalController::class, 'webhook']);
 
 // ---- Authenticated customer account (§8) ----------------------------------
 Route::middleware('auth:sanctum')->group(function () {

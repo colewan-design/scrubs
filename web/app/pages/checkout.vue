@@ -12,6 +12,7 @@ import type {
   AddressInput,
   CheckoutQuote,
   Order,
+  PaymentMethod,
   PaymentSession,
   SavedAddress,
 } from '~/composables/useApi'
@@ -23,11 +24,15 @@ import type {
  * logic at all: it posts a destination and a choice, and re-renders whatever
  * comes back. Tax, shipping and the grand total are re-derived again when the
  * order is placed, so a stale quote can never become a charge.
+ *
+ * Checkout needs a customer account (email + password or Google). A signed-out
+ * shopper is sent to sign in and brought back here, cart intact.
  */
+definePageMeta({ middleware: 'auth' })
+
 const api = useApi()
 const auth = useAuthStore()
 const cart = useCartStore()
-const route = useRoute()
 
 // Shared with the cart, which is where the choice is now made (a cookie, so it
 // survives the navigation). Writing to it here keeps the two pages agreeing if
@@ -196,7 +201,35 @@ const addressComplete = computed(() =>
  * on credentials the browser must not see and on an admin switch. The page
  * renders whatever comes back and nothing else.
  */
-const paymentMethods = computed(() => quote.value?.payment_methods ?? [])
+const serverMethods = computed(() => quote.value?.payment_methods ?? [])
+
+/** Present only when PayPal has both credentials and the admin switch on. */
+const paypalConfig = computed(() => quote.value?.paypal ?? null)
+
+/**
+ * Every way to pay, in the order they are offered.
+ *
+ * PayPal arrives separately from `payment_methods` because server-side it is
+ * not a PaymentGateway — the payment is taken by PayPal's own JS SDK rather
+ * than by a card form of ours. To the customer that distinction is invisible
+ * and it is simply another row in the chooser, so it is folded in here.
+ *
+ * It goes first where it exists: it is the only method that confirms the order
+ * there and then.
+ */
+const paymentMethods = computed<PaymentMethod[]>(() => [
+  ...(paypalConfig.value
+    ? [{
+        code: 'paypal' as const,
+        kind: 'external' as const,
+        label: 'PayPal',
+        description: 'Pay with your PayPal balance or a saved card. Your order is confirmed immediately.',
+        test_mode: paypalConfig.value.mode === 'sandbox',
+      }]
+    : []),
+  ...serverMethods.value,
+])
+
 const paymentMethod = ref<string | null>(null)
 
 watch(
@@ -219,6 +252,9 @@ const selectedMethod = computed(
 
 /** A gateway method needs a card form and can fail; an offline one cannot. */
 const payingByCard = computed(() => selectedMethod.value?.kind === 'gateway')
+
+/** PayPal drives its own buttons, so the page's own submit button steps aside. */
+const payingByPayPal = computed(() => selectedMethod.value?.kind === 'external')
 
 /**
  * The card form has to mount before any payment exists, so the key comes with
@@ -286,6 +322,48 @@ function receiptUrl(order: Order, extra = ''): string {
   return `/orders/${order.order_number}?email=${encodeURIComponent(order.email)}${extra}`
 }
 
+/** The same place, with nothing to report about the payment. */
+function confirmationPath(order: Order): string {
+  return receiptUrl(order)
+}
+
+/**
+ * The order the customer has already placed, if any.
+ *
+ * PayPal needs an order to exist before it can be paid for, so the order is
+ * placed when the PayPal button is clicked rather than on form submit. Holding
+ * it here is what stops a second click — after a cancelled PayPal window —
+ * placing a second order: the retry re-uses this one.
+ */
+const placedOrder = ref<Order | null>(null)
+
+/** Shown when an order exists but is not yet paid, so it is never lost. */
+const pendingNotice = ref<Order | null>(null)
+
+/**
+ * A payment PayPal has taken but not cleared (an eCheque, or a capture held for
+ * review). Kept apart from both generalError and pendingNotice on purpose:
+ * this is neither a failure to retry nor an order still waiting to be paid for,
+ * and both of those invite exactly the second payment that must not happen.
+ */
+const paymentClearing = ref<{ order: Order; message: string } | null>(null)
+
+/** Everything the API needs to place the order, independent of how it is paid. */
+function orderPayload() {
+  return {
+    ...contact,
+    fulfillment_type: fulfillmentType.value,
+    shipping_option: isPickup.value ? undefined : selectedOption.value,
+    // One phone field on the page: the contact number doubles as the
+    // courier's, unless a saved address brought its own.
+    shipping_address: isPickup.value
+      ? undefined
+      : { ...address, phone: address.phone || contact.phone },
+    // Omitted when it matches: the API copies shipping onto the order itself.
+    billing_address: billingSame.value ? undefined : billing,
+  }
+}
+
 /**
  * Place the order, then take the payment. In that order, and never the reverse.
  *
@@ -308,6 +386,9 @@ function receiptUrl(order: Order, extra = ''): string {
  * Note what this function never does: mark anything paid. `confirm()` resolving
  * means the customer finished, not that the money arrived. Only Stripe's
  * webhook decides that.
+ *
+ * PayPal never comes through here. Its button places the order itself, because
+ * PayPal needs an order to exist before it can be paid for — see startPayPal().
  */
 async function place() {
   errors.value = {}
@@ -334,17 +415,8 @@ async function place() {
       payment?: PaymentSession
       payment_error?: string
     }>('/checkout', {
-      ...contact,
-      fulfillment_type: fulfillmentType.value,
-      shipping_option: isPickup.value ? undefined : selectedOption.value,
+      ...orderPayload(),
       payment_method: paymentMethod.value,
-      // One phone field on the page: the contact number doubles as the
-      // courier's, unless a saved address brought its own.
-      shipping_address: isPickup.value
-        ? undefined
-        : { ...address, phone: address.phone || contact.phone },
-      // Omitted when it matches: the API copies shipping onto the order itself.
-      billing_address: billingSame.value ? undefined : billing,
     })
 
     placed = response.order
@@ -393,6 +465,134 @@ async function place() {
     placing.value = false
   }
 }
+
+/**
+ * PayPal's createOrder step: make sure an order of ours exists, and return the
+ * PayPal order id opened against it.
+ *
+ * The cart is deliberately NOT refreshed here even though the server has
+ * emptied it. The summary on the right is what the customer is checking against
+ * while the PayPal window is open, and blanking it mid-payment is alarming. It
+ * is refreshed once the payment completes.
+ */
+async function startPayPal(): Promise<string> {
+  errors.value = {}
+  generalError.value = ''
+  placing.value = true
+
+  try {
+    // Second attempt: re-use the order rather than placing another.
+    if (placedOrder.value) {
+      const { order_id } = await api.post<{ order_id: string }>(
+        `/orders/${placedOrder.value.order_number}/paypal/create`,
+        { email: placedOrder.value.email },
+      )
+
+      return order_id
+    }
+
+    const response = await api.post<{
+      order: Order
+      paypal: { order_id: string } | null
+      payment_error?: string
+    }>('/checkout', { ...orderPayload(), payment_method: 'paypal' })
+
+    // Set before the error check: the order exists either way, and losing the
+    // reference would leave the customer with a placed order they cannot find.
+    placedOrder.value = response.order
+
+    if (!response.paypal) {
+      pendingNotice.value = response.order
+      generalError.value = response.payment_error
+        || 'Your order was placed, but we could not open PayPal. Please try again.'
+
+      throw new Error(generalError.value)
+    }
+
+    return response.paypal.order_id
+  } catch (e: any) {
+    if (e?.data?.errors) errors.value = e.data.errors
+    else if (!generalError.value) {
+      generalError.value = e?.data?.message || 'We could not start the payment. Please try again.'
+    }
+
+    // Rethrown so the SDK abandons the payment rather than opening a window
+    // against an order that does not exist.
+    throw e
+  } finally {
+    placing.value = false
+  }
+}
+
+/** PayPal's onApprove step: capture, then show the confirmation. */
+async function capturePayPal(paypalOrderId: string) {
+  const order = placedOrder.value
+
+  if (!order) return
+
+  placing.value = true
+  generalError.value = ''
+
+  try {
+    const response = await api.post<{
+      order: Order
+      payment_pending?: boolean
+      message?: string
+    }>(
+      `/orders/${order.order_number}/paypal/capture`,
+      { paypal_order_id: paypalOrderId, email: order.email },
+    )
+
+    await cart.refresh()
+
+    // 202: the money is on its way but has not arrived, so there is no
+    // confirmation to navigate to yet. The customer is told what happened and
+    // the buttons are withdrawn rather than left inviting another attempt.
+    if (response.payment_pending) {
+      paymentClearing.value = {
+        order: response.order,
+        message: response.message
+          || 'PayPal has taken your payment but has not cleared it yet. Your order is saved and we will '
+            + 'confirm it as soon as the money arrives — please do not pay for it again.',
+      }
+
+      return
+    }
+
+    await navigateTo(confirmationPath(response.order))
+  } catch (e: any) {
+    // The order stands whatever happened to the payment, so the customer is
+    // pointed at it rather than left thinking the whole thing failed.
+    pendingNotice.value = order
+    generalError.value = e?.data?.message
+      || 'We could not confirm that payment. Please check your order before trying again.'
+  } finally {
+    placing.value = false
+  }
+}
+
+function onPayPalCancel() {
+  if (placedOrder.value) pendingNotice.value = placedOrder.value
+}
+
+function onPayPalError(message: string) {
+  // The SDK reports our own thrown errors here too, and startPayPal has
+  // already set a better message in that case.
+  if (message || !generalError.value) {
+    generalError.value = message || 'PayPal could not complete that payment. Please try again.'
+  }
+}
+
+/**
+ * PayPal opens a window on click, so the form cannot be validated on submit the
+ * way the offline path is — the details have to be complete before the button
+ * becomes usable.
+ */
+const contactComplete = computed(() => /.+@.+\..+/.test(contact.email))
+
+const paypalReady = computed(
+  () => canPlace.value && contactComplete.value && addressComplete.value && !placing.value,
+)
 
 const fieldError = (path: string) => errors.value[path]?.[0]
 
@@ -495,8 +695,11 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
     <div class="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
       <!-- ---------------------------------------------------------- form -->
       <form id="checkout-form" class="min-w-0 space-y-4" novalidate @submit.prevent="place">
+        <!-- Shown here for the card and offline paths, and beside the PayPal
+             button for PayPal — whichever place the customer is actually
+             looking at when it goes wrong. Never both. -->
         <p
-          v-if="generalError"
+          v-if="generalError && !payingByPayPal"
           class="rounded-md border border-status-error/30 bg-status-error/5 px-4 py-3 text-[14px] text-status-error"
           role="alert"
         >
@@ -520,16 +723,6 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
                 </p>
               </div>
             </div>
-
-            <p v-if="!auth.isAuthenticated" class="text-[13px] text-ink-500">
-              Already have an account?
-              <NuxtLink
-                :to="{ path: '/account/login', query: { redirect: route.fullPath } }"
-                class="font-medium text-ink-900 underline underline-offset-4"
-              >
-                Sign in
-              </NuxtLink>
-            </p>
           </div>
 
           <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -969,102 +1162,179 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
               <h2 class="font-body text-[16px] font-semibold text-ink-900">Payment</h2>
               <p class="mt-0.5 flex items-center gap-1.5 text-[13px] text-ink-500">
                 <Lock :size="12" aria-hidden="true" />
-                {{
-                  payingByCard
-                    ? 'Encrypted and handled by Stripe.'
-                    : 'Nothing is charged on this page.'
-                }}
+                <template v-if="payingByCard">Encrypted and handled by Stripe.</template>
+                <template v-else-if="payingByPayPal">
+                  Card details are handled by PayPal, never by us.
+                </template>
+                <template v-else>Nothing is charged on this page.</template>
               </p>
             </div>
           </div>
 
-          <!-- Method chooser. Hidden entirely when there is only one way to
-               pay: a radio group of one is a decision nobody has to make. -->
-          <fieldset v-if="paymentMethods.length > 1" class="mt-4">
-            <legend class="sr-only">Payment method</legend>
-            <div class="space-y-2">
-              <label
-                v-for="method in paymentMethods"
-                :key="method.code"
-                class="flex cursor-pointer gap-3 rounded-sm border p-3.5 transition-colors"
-                :class="
-                  paymentMethod === method.code
-                    ? 'border-ink-900 bg-surface-sunken'
-                    : 'border-edge hover:border-edge-strong/40'
-                "
-              >
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  name="payment-method"
-                  :value="method.code"
-                  class="mt-0.5 size-4 shrink-0 accent-ink-900"
-                >
-                <span class="min-w-0">
-                  <span class="block text-[14px] font-medium text-ink-900">{{ method.label }}</span>
-                  <span class="mt-0.5 block text-[12px] leading-relaxed text-ink-500">
-                    {{ method.description }}
-                  </span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-
-          <!-- Card. The element mounts a Stripe-hosted iframe; no card number
-               ever touches this page or this server (§12, PCI SAQ-A). -->
-          <div v-if="payingByCard" class="mt-4">
-            <ClientOnly>
-              <CheckoutStripePayment
-                v-if="quote && selectedMethod && stripePublicKey"
-                ref="stripeForm"
-                :public-key="stripePublicKey"
-                :amount-cents="quote.grand_total.cents"
-                :test-mode="selectedMethod.test_mode"
-                @ready="cardReady = true"
-                @error="cardBlocked = $event"
-              />
-              <template #fallback>
-                <p class="py-6 text-center text-[13px] text-ink-500">Loading secure card form…</p>
-              </template>
-            </ClientOnly>
-          </div>
-
-          <!-- Offline methods: instructions, not a form. The order is placed as
-               Pending Payment and a human settles it (§4). -->
-          <div v-else class="mt-4 rounded-sm border border-edge bg-surface-sunken p-4">
-            <p class="flex items-center gap-2.5 text-[14px] font-medium text-ink-900">
-              <span
-                class="size-4 shrink-0 rounded-full border-[5px] border-ink-900"
-                aria-hidden="true"
-              />
-              {{ selectedMethod?.label ?? 'Payment on confirmation' }}
-            </p>
-            <p class="mt-2 text-[13px] leading-relaxed text-ink-700">
-              Your order is placed as
-              <strong class="font-medium text-ink-900">Pending Payment</strong>. We email payment
-              instructions and confirm the order as soon as it is settled — no card is charged
-              automatically.
-            </p>
-            <p
-              v-if="quote?.etransfer?.instructions && paymentMethod === 'etransfer'"
-              class="mt-2 text-[13px] leading-relaxed whitespace-pre-line text-ink-700"
-            >
-              {{ quote.etransfer.instructions }}
-            </p>
-          </div>
-
-          <UiBaseButton
-            type="submit"
-            form="checkout-form"
-            size="lg"
-            block
-            class="mt-4"
-            :loading="placing"
-            :disabled="placing || !canPlace"
+          <!-- A payment PayPal is still clearing. Deliberately above the
+               Pending Payment notice and mutually exclusive with it: that one
+               offers a way to pay now, which is the one thing not to do here. -->
+          <p
+            v-if="paymentClearing"
+            class="mt-4 rounded-sm border border-edge bg-surface-warm px-4 py-3 text-[13px] leading-relaxed text-ink-700"
+            role="status"
           >
-            <Lock v-if="!placing" :size="15" aria-hidden="true" />
-            Place Order<template v-if="quote"> — {{ money(quote.grand_total) }}</template>
-          </UiBaseButton>
+            {{ paymentClearing.message }}
+            <NuxtLink
+              :to="confirmationPath(paymentClearing.order)"
+              class="font-medium text-ink-900 underline underline-offset-4"
+            >
+              {{ paymentClearing.order.order_number }}
+            </NuxtLink>
+          </p>
+
+          <!-- An order that exists but is not yet paid. Shown rather than
+               swallowed: the customer's stock is reserved against it, and they
+               need a way back to it if anything went wrong. -->
+          <p
+            v-if="pendingNotice && !paymentClearing"
+            class="mt-4 rounded-sm border border-edge bg-surface-warm px-4 py-3 text-[13px] leading-relaxed text-ink-700"
+          >
+            Your order
+            <NuxtLink :to="confirmationPath(pendingNotice)" class="font-medium text-ink-900 underline underline-offset-4">
+              {{ pendingNotice.order_number }}
+            </NuxtLink>
+            is saved as Pending Payment. You can pay for it now, or find it again from that link.
+          </p>
+
+          <!-- Everything below is a way to pay, so all of it is hidden while a
+               payment is clearing: the money for this order is already on its
+               way, and a second one must not be invited. -->
+          <template v-if="!paymentClearing">
+            <!-- Method chooser. Hidden entirely when there is only one way to
+                 pay: a radio group of one is a decision nobody has to make. -->
+            <fieldset v-if="paymentMethods.length > 1" class="mt-4">
+              <legend class="sr-only">Payment method</legend>
+              <div class="space-y-2">
+                <label
+                  v-for="method in paymentMethods"
+                  :key="method.code"
+                  class="flex cursor-pointer gap-3 rounded-sm border p-3.5 transition-colors"
+                  :class="
+                    paymentMethod === method.code
+                      ? 'border-ink-900 bg-surface-sunken'
+                      : 'border-edge hover:border-edge-strong/40'
+                  "
+                >
+                  <input
+                    v-model="paymentMethod"
+                    type="radio"
+                    name="payment-method"
+                    :value="method.code"
+                    class="mt-0.5 size-4 shrink-0 accent-ink-900"
+                  >
+                  <span class="min-w-0">
+                    <span class="block text-[14px] font-medium text-ink-900">{{ method.label }}</span>
+                    <span class="mt-0.5 block text-[12px] leading-relaxed text-ink-500">
+                      {{ method.description }}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            <!-- ------------------------------------------------------ card -->
+            <!-- The element mounts a Stripe-hosted iframe; no card number ever
+                 touches this page or this server (§12, PCI SAQ-A). -->
+            <div v-if="payingByCard" class="mt-4">
+              <ClientOnly>
+                <CheckoutStripePayment
+                  v-if="quote && selectedMethod && stripePublicKey"
+                  ref="stripeForm"
+                  :public-key="stripePublicKey"
+                  :amount-cents="quote.grand_total.cents"
+                  :test-mode="selectedMethod.test_mode"
+                  @ready="cardReady = true"
+                  @error="cardBlocked = $event"
+                />
+                <template #fallback>
+                  <p class="py-6 text-center text-[13px] text-ink-500">Loading secure card form…</p>
+                </template>
+              </ClientOnly>
+            </div>
+
+            <!-- ---------------------------------------------------- PayPal -->
+            <div v-else-if="payingByPayPal && paypalConfig" class="mt-4">
+              <p
+                v-if="generalError"
+                class="mb-3 rounded-sm border border-status-error/30 bg-status-error/5 px-3.5 py-2.5 text-[13px] leading-relaxed text-status-error"
+                role="alert"
+              >
+                {{ generalError }}
+              </p>
+
+              <p
+                v-if="paypalConfig.mode === 'sandbox'"
+                class="mb-3 rounded-sm border border-status-error/30 bg-status-error/5 px-3.5 py-2.5 text-[12px] font-medium text-status-error"
+                role="alert"
+              >
+                PayPal is in test mode. No real payment will be taken.
+              </p>
+
+              <CheckoutPayPalButtons
+                :client-id="paypalConfig.client_id"
+                :currency="paypalConfig.currency"
+                :disabled="!paypalReady"
+                :create-order="startPayPal"
+                :on-approved="capturePayPal"
+                @cancel="onPayPalCancel"
+                @error="onPayPalError"
+              />
+
+              <p class="mt-3 text-[12px] leading-relaxed text-ink-500">
+                You'll pay
+                <span v-if="quote" class="tabular font-medium text-ink-700">{{ money(quote.grand_total) }}</span>
+                in the PayPal window. Your order is confirmed the moment the payment clears.
+              </p>
+            </div>
+
+            <!-- --------------------------------------------------- offline -->
+            <!-- Instructions, not a form. The order is placed as Pending
+                 Payment and a human settles it (§4). -->
+            <div v-else class="mt-4 rounded-sm border border-edge bg-surface-sunken p-4">
+              <p class="flex items-center gap-2.5 text-[14px] font-medium text-ink-900">
+                <span
+                  class="size-4 shrink-0 rounded-full border-[5px] border-ink-900"
+                  aria-hidden="true"
+                />
+                {{ selectedMethod?.label ?? 'Payment on confirmation' }}
+              </p>
+              <p class="mt-2 text-[13px] leading-relaxed text-ink-700">
+                Your order is placed as
+                <strong class="font-medium text-ink-900">Pending Payment</strong>. We email payment
+                instructions and confirm the order as soon as it is settled — no card is charged
+                automatically.
+              </p>
+              <p
+                v-if="quote?.etransfer?.instructions && paymentMethod === 'etransfer'"
+                class="mt-2 text-[13px] leading-relaxed whitespace-pre-line text-ink-700"
+              >
+                {{ quote.etransfer.instructions }}
+              </p>
+            </div>
+
+            <!-- Every path but PayPal places the order from here. PayPal's own
+                 button does it instead, because PayPal needs the order to exist
+                 before it will open — a second button would be a second order. -->
+            <UiBaseButton
+              v-if="!payingByPayPal"
+              type="submit"
+              form="checkout-form"
+              size="lg"
+              block
+              class="mt-4"
+              :loading="placing"
+              :disabled="placing || !canPlace"
+            >
+              <Lock v-if="!placing" :size="15" aria-hidden="true" />
+              Place Order<template v-if="quote"> — {{ money(quote.grand_total) }}</template>
+            </UiBaseButton>
+          </template>
 
           <p class="mt-3 text-center text-[12px] leading-relaxed text-ink-500">
             By placing your order, you agree to our

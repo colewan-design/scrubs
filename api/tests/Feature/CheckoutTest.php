@@ -65,6 +65,14 @@ class CheckoutTest extends TestCase
      */
     protected ?string $cartToken = null;
 
+    /** Checkout needs an account, so unless a test names one, this customer shops. */
+    protected ?User $shopper = null;
+
+    protected function shopper(): User
+    {
+        return $this->shopper ??= User::factory()->create();
+    }
+
     protected function cartHeaders(): array
     {
         return $this->cartToken ? ['X-Cart-Token' => $this->cartToken] : [];
@@ -72,9 +80,7 @@ class CheckoutTest extends TestCase
 
     protected function addToCart(ProductVariant $variant, int $qty, ?User $user = null): void
     {
-        $client = $user ? $this->actingAs($user) : $this;
-
-        $response = $client->withHeaders($this->cartHeaders())
+        $response = $this->actingAs($user ?? $this->shopper())->withHeaders($this->cartHeaders())
             ->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'qty' => $qty]);
 
         $this->cartToken = $response->json('cart_token') ?: $this->cartToken;
@@ -82,17 +88,14 @@ class CheckoutTest extends TestCase
 
     protected function checkoutQuote(array $payload = [], ?User $user = null)
     {
-        $client = $user ? $this->actingAs($user) : $this;
-
-        return $client->withHeaders($this->cartHeaders())
+        return $this->actingAs($user ?? $this->shopper())->withHeaders($this->cartHeaders())
             ->postJson('/api/v1/checkout/quote', $payload ?: ['province' => 'ON']);
     }
 
     protected function placeOrder(array $payload, ?User $user = null)
     {
-        $client = $user ? $this->actingAs($user) : $this;
-
-        return $client->withHeaders($this->cartHeaders())->postJson('/api/v1/checkout', $payload);
+        return $this->actingAs($user ?? $this->shopper())->withHeaders($this->cartHeaders())
+            ->postJson('/api/v1/checkout', $payload);
     }
 
     protected function address(): array
@@ -366,9 +369,36 @@ class CheckoutTest extends TestCase
 
         $order = Order::first();
 
+        // Everything below is asked by someone who is not signed in as the owner.
+        $this->app['auth']->forgetGuards();
+
         $this->getJson("/api/v1/orders/{$order->order_number}")->assertNotFound();
         $this->getJson("/api/v1/orders/{$order->order_number}?email=someone@else.ca")->assertNotFound();
         $this->getJson("/api/v1/orders/{$order->order_number}?email=dana@clinic.ca")->assertOk();
+    }
+
+    /** Checking out needs an account — a signed-out shopper is sent to sign in. */
+    public function test_a_signed_out_shopper_cannot_check_out(): void
+    {
+        $this->setUpCanada();
+
+        $response = $this->postJson('/api/v1/cart/items', ['variant_id' => $this->variant()->id, 'qty' => 1])
+            ->assertSuccessful();
+        $this->cartToken = $response->json('cart_token');
+
+        $this->withHeaders($this->cartHeaders())
+            ->postJson('/api/v1/checkout/quote', ['province' => 'ON'])
+            ->assertUnauthorized();
+
+        $this->withHeaders($this->cartHeaders())
+            ->postJson('/api/v1/checkout', [
+                'email' => 'dana@clinic.ca',
+                'shipping_option' => 'standard',
+                'shipping_address' => $this->address(),
+            ])
+            ->assertUnauthorized();
+
+        $this->assertSame(0, Order::count());
     }
 
     /** Wholesale pricing must survive into the order, not evaporate at checkout. */

@@ -26,6 +26,12 @@ const form = reactive({
 const errors = ref<Record<string, string[]>>({})
 const generalError = ref('')
 
+// Carried from sign-in when checkout sent them there, so a new account lands
+// back on checkout rather than the account home.
+const redirect = computed(() =>
+  typeof route.query.redirect === 'string' ? route.query.redirect : undefined,
+)
+
 const provinces = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']
 
 async function submit() {
@@ -33,7 +39,7 @@ async function submit() {
   generalError.value = ''
   try {
     await auth.register({ ...form })
-    await navigateTo('/account')
+    await navigateTo(redirect.value || '/account')
   } catch (e: any) {
     if (e?.data?.errors) errors.value = e.data.errors
     else generalError.value = e?.data?.message || 'Something went wrong. Please try again.'
@@ -155,7 +161,10 @@ useSeoMeta({ title: 'Create an account', robots: 'noindex' })
 
           <p class="text-center text-[13px] text-ink-500">
             Already have an account?
-            <NuxtLink to="/account/login" class="text-ink-900 underline underline-offset-4">Sign in</NuxtLink>
+            <NuxtLink
+              :to="{ path: '/account/login', query: redirect ? { redirect } : undefined }"
+              class="text-ink-900 underline underline-offset-4"
+            >Sign in</NuxtLink>
           </p>
         </form>
       </div>

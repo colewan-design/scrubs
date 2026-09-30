@@ -156,6 +156,49 @@ class SocialAuthTest extends TestCase
         $this->assertGuest();
     }
 
+    /**
+     * Checkout needs an account, so a shopper who signs in with Google from
+     * checkout has to land back on checkout rather than the account home.
+     */
+    public function test_google_sign_in_returns_the_customer_to_where_they_started(): void
+    {
+        $this->configureGoogle();
+
+        $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+        $provider->shouldReceive('redirect')->andReturn(redirect()->away('https://accounts.google.com/o/oauth2/auth'));
+        $oauthUser = (new SocialiteUser)->map(['id' => 'google-1', 'name' => 'Dana Reyes', 'email' => 'dana@clinic.ca']);
+        $provider->shouldReceive('user')->andReturn($oauthUser);
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        // A browser navigation from the storefront — what gives Sanctum's
+        // stateful API a session to remember the return path in.
+        $frontend = rtrim(config('app.frontend_url'), '/');
+        $this->withHeader('Referer', $frontend.'/checkout');
+
+        $this->get('/api/v1/auth/google/redirect?redirect=/checkout')
+            ->assertRedirect('https://accounts.google.com/o/oauth2/auth')
+            ->assertSessionHas('social_auth.return_to', '/checkout');
+
+        $this->get('/api/v1/auth/google/callback')
+            ->assertRedirect($frontend.'/checkout');
+    }
+
+    /** The return path must never become an open redirect off our domain. */
+    public function test_a_return_path_off_the_storefront_is_ignored(): void
+    {
+        $this->configureGoogle();
+        $this->fakeGoogleUser('google-1', 'dana@clinic.ca');
+
+        $frontend = rtrim(config('app.frontend_url'), '/');
+
+        foreach (['//evil.test/x', 'https://evil.test', '/\\evil.test'] as $target) {
+            $this->withHeader('Referer', $frontend.'/checkout')
+                ->withSession(['social_auth.return_to' => $target])
+                ->get('/api/v1/auth/google/callback')
+                ->assertRedirect($frontend.'/account');
+        }
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
