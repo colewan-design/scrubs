@@ -19,15 +19,6 @@ if (error.value) {
 const product = computed(() => data.value!.data)
 
 /**
- * TODO(reviews): there is no reviews table, endpoint or admin resource — §2
- * never asked for one. The row is drawn at the figures the redesign shows so
- * the layout is final; replace both constants with the real aggregate before
- * this ships, or remove the row. Nothing here is persisted or submitted.
- */
-const PLACEHOLDER_RATING = 4.8
-const PLACEHOLDER_REVIEW_COUNT = 124
-
-/**
  * The rung `wholesale_from` refers to. Named beside the price so the figure is
  * never a bare number without the threshold that earns it.
  */
@@ -237,9 +228,8 @@ useHead({
                   ? 'https://schema.org/InStock'
                   : 'https://schema.org/OutOfStock',
               },
-          // Deliberately no aggregateRating: the figures on the page are
-          // placeholders, and marking them up would put invented review counts
-          // into search results. Add it back with the reviews feature.
+          // Deliberately no aggregateRating until a reviews feature exists —
+          // there is nothing real to mark up.
         }),
       ),
     },
@@ -282,18 +272,9 @@ useHead({
             {{ product.name }}
           </h1>
 
-          <div class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <ShopStarRating :rating="PLACEHOLDER_RATING" :count="PLACEHOLDER_REVIEW_COUNT" />
-            <span class="text-edge" aria-hidden="true">|</span>
-            <!-- Inert until reviews exist — see the TODO above. -->
-            <button
-              type="button"
-              disabled
-              title="Reviews are coming soon"
-              class="cursor-not-allowed text-[13px] text-ink-500 underline underline-offset-4"
-            >Write a review</button>
-          </div>
-
+          <!-- No rating row: there is no reviews table, endpoint or admin
+               resource, and the redesign's 4.8 / 124 figures were invented.
+               ShopStarRating is kept for when real reviews exist. -->
           <p class="tabular mt-4 text-[26px] font-medium text-ink-900">
             <span v-if="priceIsFrom" class="text-[15px] font-normal text-ink-500">from </span
             >{{ displayPrice.currency }} {{ displayPrice.formatted }}
