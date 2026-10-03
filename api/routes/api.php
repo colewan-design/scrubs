@@ -57,16 +57,10 @@ Route::post('/auth/logout', [AuthController::class, 'logout']);
 Route::get('/auth/me', [AuthController::class, 'me']);
 
 // ---- Social sign-in (§3) ---------------------------------------------------
-// Browser redirects rather than JSON: the customer leaves for the provider and
-// comes back. Inert until credentials are configured, and the controller says
-// so rather than erroring.
-// Lets the storefront render only the buttons that will actually work.
+// Lets the storefront render only the buttons that will actually work. The
+// redirect and callback themselves are browser redirects, not API calls, and
+// live in routes/web.php — see the note there.
 Route::get('/auth/providers', [SocialAuthController::class, 'available']);
-
-Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])
-    ->whereIn('provider', ['google']);
-Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])
-    ->whereIn('provider', ['google']);
 
 // ---- Email verification (§8) -----------------------------------------------
 // The confirmation link is clicked in a mail client, often on a device with no

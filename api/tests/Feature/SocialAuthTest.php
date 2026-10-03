@@ -4,8 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\SocialAccount;
 use App\Models\User;
+use GuzzleHttp\Client;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Mockery;
 use Tests\TestCase;
@@ -170,17 +175,60 @@ class SocialAuthTest extends TestCase
         $provider->shouldReceive('user')->andReturn($oauthUser);
         Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
 
-        // A browser navigation from the storefront — what gives Sanctum's
-        // stateful API a session to remember the return path in.
         $frontend = rtrim(config('app.frontend_url'), '/');
-        $this->withHeader('Referer', $frontend.'/checkout');
 
-        $this->get('/api/v1/auth/google/redirect?redirect=/checkout')
+        $this->withHeader('Referer', $frontend.'/checkout')
+            ->get('/api/v1/auth/google/redirect?redirect=/checkout')
             ->assertRedirect('https://accounts.google.com/o/oauth2/auth')
             ->assertSessionHas('social_auth.return_to', '/checkout');
 
-        $this->get('/api/v1/auth/google/callback')
+        $this->withHeader('Referer', 'https://accounts.google.com/')
+            ->get('/api/v1/auth/google/callback')
             ->assertRedirect($frontend.'/checkout');
+    }
+
+    /**
+     * The whole round trip with the real Google driver, so its OAuth `state`
+     * check goes through the session; only Google's endpoints are faked. Google
+     * sends the customer back with an accounts.google.com Referer, which
+     * Sanctum's stateful API does not count as the storefront — the callback
+     * once ran with no session at all and every live sign-in failed.
+     */
+    public function test_a_customer_coming_back_from_google_is_signed_in(): void
+    {
+        $this->configureGoogle();
+
+        $google = new Client(['handler' => HandlerStack::create(new MockHandler([
+            new GuzzleResponse(200, [], json_encode(['access_token' => 'access-token', 'expires_in' => 3599])),
+            new GuzzleResponse(200, [], json_encode([
+                'sub' => 'google-1',
+                'name' => 'Dana Reyes',
+                'email' => 'dana@clinic.ca',
+                'email_verified' => true,
+            ])),
+        ]))]);
+
+        Socialite::extend('google', fn () => Socialite::buildProvider(GoogleProvider::class, config('services.google'))
+            ->setHttpClient($google));
+
+        $frontend = rtrim(config('app.frontend_url'), '/');
+
+        $location = $this->withHeader('Referer', $frontend.'/account/login')
+            ->get('/api/v1/auth/google/redirect')
+            ->assertRedirect()
+            ->headers->get('Location');
+
+        parse_str(parse_url($location, PHP_URL_QUERY), $query);
+
+        // A driver holds the request it was built for. In production every
+        // request builds its own; here the manager outlives the first one.
+        Socialite::forgetDrivers();
+
+        $this->withHeader('Referer', 'https://accounts.google.com/')
+            ->get('/api/v1/auth/google/callback?'.http_build_query(['state' => $query['state'], 'code' => 'auth-code']))
+            ->assertRedirect($frontend.'/account');
+
+        $this->assertAuthenticatedAs(User::where('email', 'dana@clinic.ca')->firstOrFail());
     }
 
     /** The return path must never become an open redirect off our domain. */
@@ -192,8 +240,7 @@ class SocialAuthTest extends TestCase
         $frontend = rtrim(config('app.frontend_url'), '/');
 
         foreach (['//evil.test/x', 'https://evil.test', '/\\evil.test'] as $target) {
-            $this->withHeader('Referer', $frontend.'/checkout')
-                ->withSession(['social_auth.return_to' => $target])
+            $this->withSession(['social_auth.return_to' => $target])
                 ->get('/api/v1/auth/google/callback')
                 ->assertRedirect($frontend.'/account');
         }
