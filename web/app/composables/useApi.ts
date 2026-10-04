@@ -243,6 +243,30 @@ export interface AddressInput {
   phone?: string
 }
 
+/** One row of the address suggestions offered while the customer types. */
+export interface AddressSuggestion {
+  /** Opaque to the page: handed back to the API when this row is picked. */
+  id: string
+  /** The street line — "5580 Belmont Avenue". */
+  primary: string
+  /** Where that is — "Niagara Falls, ON". */
+  secondary: string
+  /** The fields themselves, when the provider sends them with the suggestion. */
+  address?: ResolvedAddress
+}
+
+/**
+ * A picked suggestion, broken into form fields. A part is null where the
+ * lookup could not say, and null means "ask the customer" — never a guess.
+ */
+export interface ResolvedAddress {
+  line1: string | null
+  line2: string | null
+  city: string | null
+  province: string | null
+  postal_code: string | null
+}
+
 export interface OrderAddress extends AddressInput {
   name: string
   lines: string[]

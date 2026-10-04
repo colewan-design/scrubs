@@ -21,6 +21,30 @@ return [
     ],
 
     /*
+    | Address lookup at checkout. `provider` picks one of two, and each needs
+    | only its own credential:
+    |
+    |   mapbox — `mapbox_token` is a PUBLIC token (`pk.…`). It is handed to the
+    |            browser, which talks to Mapbox directly through Mapbox's SDK,
+    |            so restrict it by URL in the Mapbox account. A secret token
+    |            here is refused rather than published.
+    |
+    |   google — `google_key` is a Places API (New) key from the same Google
+    |            Cloud project as the sign-in pair above. It is used from this
+    |            server only and never reaches the browser, so restrict it by
+    |            API and by the server's addresses, not by website.
+    |
+    | With the chosen provider's credential unset the lookup is simply off and
+    | the address form is typed by hand — nothing else at checkout depends on it.
+    */
+    'address_lookup' => [
+        'provider' => env('ADDRESS_LOOKUP_PROVIDER', 'mapbox'),
+        'mapbox_token' => env('MAPBOX_PUBLIC_TOKEN'),
+        'google_key' => env('GOOGLE_PLACES_API_KEY'),
+        'timeout' => (int) env('ADDRESS_LOOKUP_TIMEOUT', 4),
+    ],
+
+    /*
     | Apple sign-in was dropped from scope on 2026-09-04 — a paid developer
     | account and a six-monthly secret rotation for a second button. The brief
     | called it optional. Google is the only social provider.

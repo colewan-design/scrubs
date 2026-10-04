@@ -33,7 +33,7 @@ const control =
 <template>
   <div>
     <div
-      class="rounded-sm border bg-white px-3.5 py-2 transition-colors focus-within:border-edge-strong"
+      class="relative rounded-sm border bg-white px-3.5 py-2 transition-colors focus-within:border-edge-strong"
       :class="error ? 'border-status-error' : 'border-edge'"
     >
       <label :for="id" class="block text-[11px] text-ink-500">

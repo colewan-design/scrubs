@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AddressInput } from '~/composables/useApi'
+import type { AddressInput, ResolvedAddress } from '~/composables/useApi'
 
 /**
  * The eight address fields, used twice on checkout: once for shipping, and
@@ -36,10 +36,46 @@ const PROVINCES = [
 
 const err = (field: string) => props.errors[`${props.prefix}.${field}`]?.[0]
 const auto = (token: string) => `${props.scope} ${token}`
+
+const fields = ref<HTMLElement | null>(null)
+
+/**
+ * Fill the form from a picked address suggestion.
+ *
+ * City, province and postal code are replaced even when the lookup has nothing
+ * for them — a blank the customer has to fill beats the previous address's
+ * postal code sitting under a new street, looking right and being wrong. Those
+ * are also the fields shipping and tax are quoted from.
+ *
+ * The unit line is only written when the lookup found a unit: it is optional,
+ * usually typed after this, and the lookup rarely knows it.
+ */
+function applyLookup(found: ResolvedAddress) {
+  const address = props.address
+
+  if (found.line1) address.line1 = found.line1
+  if (found.line2) address.line2 = found.line2
+  address.city = found.city ?? ''
+  address.province = found.province ?? ''
+  address.postal_code = found.postal_code ?? ''
+
+  // On to whatever still needs the customer: the first gap the lookup left,
+  // or the unit number if it left none. Found by autocomplete token, the one
+  // thing every field here already has that says which field it is.
+  const next = !address.city
+    ? 'address-level2'
+    : !address.province
+        ? 'address-level1'
+        : !address.postal_code ? 'postal-code' : 'address-line2'
+
+  nextTick(() => {
+    fields.value?.querySelector<HTMLElement>(`[autocomplete$="${next}"]`)?.focus()
+  })
+}
 </script>
 
 <template>
-  <div class="grid gap-3 sm:grid-cols-2">
+  <div ref="fields" class="grid gap-3 sm:grid-cols-2">
     <CheckoutField
       v-model="address.first_name"
       label="First name"
@@ -59,13 +95,18 @@ const auto = (token: string) => `${props.scope} ${token}`
       :autocomplete="auto('organization')"
       class="sm:col-span-2"
     />
-    <CheckoutField
-      v-model="address.line1"
-      label="Address"
-      :autocomplete="auto('address-line1')"
-      :error="err('line1')"
-      class="sm:col-span-2"
-    />
+    <CheckoutField label="Address" :error="err('line1')" class="sm:col-span-2">
+      <template #default="{ id, control }">
+        <CheckoutAddressAutocomplete
+          :id="id"
+          v-model="address.line1"
+          :control="control"
+          :autocomplete="auto('address-line1')"
+          :invalid="Boolean(err('line1'))"
+          @resolved="applyLookup"
+        />
+      </template>
+    </CheckoutField>
     <CheckoutField
       v-model="address.line2"
       label="Apartment, suite, etc."

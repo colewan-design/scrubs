@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Services\Shipping\StallionProvider;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +32,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Address lookup is paid for per request, so it gets two ceilings. The
+        // minute limit is generous enough that nobody typing an address meets
+        // it; the daily one is what bounds the bill if an account is scripted.
+        RateLimiter::for('address-lookup', function (Request $request) {
+            $who = $request->user()?->id ?: $request->ip();
+
+            return [
+                Limit::perMinute(60)->by('address-lookup:minute:'.$who),
+                Limit::perDay(600)->by('address-lookup:day:'.$who),
+            ];
+        });
     }
 }

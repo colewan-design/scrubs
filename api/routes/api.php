@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\AddressLookupController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
@@ -81,6 +82,18 @@ Route::get('/content/policies/{slug}', [ContentController::class, 'policy']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/checkout/quote', [CheckoutController::class, 'quote']);
     Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:12,1');
+});
+
+// ---- Address lookup at checkout --------------------------------------------
+// Suggestions as the customer types. `lookup` says which provider is in force;
+// with Mapbox the browser takes it from there, and with Google the other two
+// proxy each request so the key stays here. Signed-in only, like checkout
+// itself, and rate limited by account (see AppServiceProvider): every proxied
+// call is a billable request to someone else's API.
+Route::middleware(['auth:sanctum', 'throttle:address-lookup'])->group(function () {
+    Route::get('/address/lookup', [AddressLookupController::class, 'config']);
+    Route::get('/address/suggest', [AddressLookupController::class, 'suggest']);
+    Route::get('/address/resolve', [AddressLookupController::class, 'resolve']);
 });
 
 // Order lookup proves ownership itself — signed-in owner, or the email the
