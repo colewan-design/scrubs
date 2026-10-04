@@ -188,10 +188,18 @@ onMounted(() => {
  * section it names, and clicking one scrolls there. Nothing is ever hidden
  * behind a step you cannot reach.
  */
+const filledIn = (a: AddressInput) =>
+  Boolean(a.first_name && a.last_name && a.line1 && a.city && a.province && a.postal_code)
+
+/**
+ * A separate billing address is only ever asked for on a delivery order — the
+ * tick-box lives in the shipping section, which pickup hides — so that is the
+ * only time one is sent, or has to be complete.
+ */
+const billingSeparately = computed(() => !isPickup.value && !billingSame.value)
+
 const addressComplete = computed(() =>
-  isPickup.value
-  || Boolean(address.first_name && address.last_name && address.line1 && address.city
-    && address.province && address.postal_code),
+  isPickup.value || (filledIn(address) && (!billingSeparately.value || filledIn(billing))),
 )
 
 // --- payment ---------------------------------------------------------------
@@ -360,8 +368,29 @@ function orderPayload() {
       ? undefined
       : { ...address, phone: address.phone || contact.phone },
     // Omitted when it matches: the API copies shipping onto the order itself.
-    billing_address: billingSame.value ? undefined : billing,
+    billing_address: billingSeparately.value ? billing : undefined,
   }
+}
+
+/**
+ * Show what the API refused, where the customer will see it.
+ *
+ * The messages land under the fields they belong to — but those fields are in
+ * the left column and the button that was just pressed is in the right, often
+ * a screen or two away. Without the summary and the scroll, a missing billing
+ * postal code looks exactly like a button that does nothing.
+ */
+async function showFieldErrors(fields: Record<string, string[]>) {
+  errors.value = fields
+  generalError.value = 'Some details are missing or need another look. Please check the highlighted fields.'
+
+  await nextTick()
+
+  // The first field at fault, or the top of the form where the summary is.
+  const target = document.querySelector('#checkout-form [aria-invalid="true"]')
+    ?? document.getElementById('checkout-form')
+
+  target?.scrollIntoView({ behavior: 'smooth', block: target.id === 'checkout-form' ? 'start' : 'center' })
 }
 
 /**
@@ -459,7 +488,7 @@ async function place() {
       return
     }
 
-    if (e?.data?.errors) errors.value = e.data.errors
+    if (e?.data?.errors) await showFieldErrors(e.data.errors)
     else generalError.value = e?.data?.message || 'Something went wrong. Please try again.'
   } finally {
     placing.value = false
@@ -511,7 +540,7 @@ async function startPayPal(): Promise<string> {
 
     return response.paypal.order_id
   } catch (e: any) {
-    if (e?.data?.errors) errors.value = e.data.errors
+    if (e?.data?.errors) await showFieldErrors(e.data.errors)
     else if (!generalError.value) {
       generalError.value = e?.data?.message || 'We could not start the payment. Please try again.'
     }

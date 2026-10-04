@@ -147,10 +147,12 @@ class OrderService
 
             // Billing defaults to the shipping address — the overwhelmingly
             // common case, and one fewer form for the customer to fill in.
+            // An empty billing address counts as none given, not as "bill
+            // nowhere".
             $this->writeAddress(
                 $order,
                 OrderAddress::TYPE_BILLING,
-                $input['billing_address'] ?? $shippingAddress ?? []
+                ($input['billing_address'] ?? null) ?: ($shippingAddress ?? [])
             );
 
             $this->writePayment($order, $paymentMethod);

@@ -63,7 +63,7 @@ class OrderController extends Controller
         try {
             $order = $this->orders->cancel($order, 'Cancelled by customer.', $request->user());
         } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return $this->refusal($e, 'We could not cancel that order. Please contact us and we will sort it out.');
         }
 
         return response()->json([

@@ -12,7 +12,9 @@ use App\Models\TaxRate;
 use App\Models\User;
 use App\Services\Orders\OrderService;
 use App\Support\Settings;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PDOException;
 use Tests\TestCase;
 
 /**
@@ -430,5 +432,147 @@ class CheckoutTest extends TestCase
         $response->assertJsonPath('order.totals.discount.cents', 7500);
         $response->assertJsonPath('order.pricing_tier_name', 'Tier 1');
         $response->assertJsonPath('order.items.0.unit_price.cents', 3500);
+    }
+
+    // ------------------------------------------------------ billing address
+
+    /** With nothing said about billing, the order bills where it ships. */
+    public function test_billing_defaults_to_the_shipping_address(): void
+    {
+        $this->setUpCanada();
+        $this->addToCart($this->variant(), 1);
+        $quote = $this->checkoutQuote();
+
+        $this->placeOrder([
+            'email' => 'dana@clinic.ca',
+            'shipping_option' => $quote->json('shipping_options.0.code'),
+            'shipping_address' => $this->address(),
+        ])->assertCreated()
+            ->assertJsonPath('order.billing_address.line1', '10 Queen St W')
+            ->assertJsonPath('order.billing_address.postal_code', 'M5H 2N2');
+    }
+
+    public function test_a_different_billing_address_is_recorded_as_given(): void
+    {
+        $this->setUpCanada();
+        $this->addToCart($this->variant(), 1);
+        $quote = $this->checkoutQuote();
+
+        $this->placeOrder([
+            'email' => 'dana@clinic.ca',
+            'shipping_option' => $quote->json('shipping_options.0.code'),
+            'shipping_address' => $this->address(),
+            'billing_address' => [
+                'first_name' => 'Accounts', 'last_name' => 'Payable',
+                'line1' => '5580 Belmont Ave', 'city' => 'Niagara Falls',
+                'province' => 'on', 'postal_code' => 'L2H 1J7',
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('order.shipping_address.city', 'Toronto')
+            ->assertJsonPath('order.billing_address.name', 'Accounts Payable')
+            ->assertJsonPath('order.billing_address.city', 'Niagara Falls')
+            ->assertJsonPath('order.billing_address.province', 'ON');
+    }
+
+    /**
+     * "Use this address for billing as well" unticked, and the billing form
+     * left empty — which is what the storefront posts as an address of blanks.
+     * That used to reach the database, fail there, and show the customer the
+     * SQL. It is a form error, on the fields that are missing.
+     */
+    public function test_a_blank_billing_address_is_a_form_error_not_a_database_error(): void
+    {
+        $this->setUpCanada();
+        $variant = $this->variant(5000, 50);
+        $this->addToCart($variant, 1);
+        $quote = $this->checkoutQuote();
+
+        $response = $this->placeOrder([
+            'email' => 'dana@clinic.ca',
+            'shipping_option' => $quote->json('shipping_options.0.code'),
+            'shipping_address' => $this->address(),
+            'billing_address' => [
+                'first_name' => '', 'last_name' => '', 'company' => '', 'line1' => '', 'line2' => '',
+                'city' => '', 'province' => '', 'postal_code' => '', 'country' => 'CA', 'phone' => '',
+            ],
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors([
+            'billing_address.first_name', 'billing_address.last_name', 'billing_address.line1',
+            'billing_address.city', 'billing_address.province', 'billing_address.postal_code',
+        ]);
+        $response->assertDontSee('SQLSTATE');
+
+        // Printed under the field it is about, so it names the field and no more.
+        $messages = $response->json('errors');
+        $this->assertSame('The address field is required.', $messages['billing_address.line1'][0]);
+        $this->assertSame('The postal code field is required.', $messages['billing_address.postal_code'][0]);
+
+        // Nothing half-made is left behind, and no stock is held for it.
+        $this->assertSame(0, Order::count());
+        $this->assertSame(0, $variant->fresh()->reserved_qty);
+    }
+
+    /** A half-filled billing address names what is missing, and only that. */
+    public function test_a_partial_billing_address_names_the_missing_fields(): void
+    {
+        $this->setUpCanada();
+        $this->addToCart($this->variant(), 1);
+        $quote = $this->checkoutQuote();
+
+        $this->placeOrder([
+            'email' => 'dana@clinic.ca',
+            'shipping_option' => $quote->json('shipping_options.0.code'),
+            'shipping_address' => $this->address(),
+            'billing_address' => ['first_name' => 'Dana', 'last_name' => 'Reid', 'line1' => '1 Main St'],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['billing_address.city', 'billing_address.province', 'billing_address.postal_code'])
+            ->assertJsonMissingValidationErrors(['billing_address.first_name', 'billing_address.line1']);
+    }
+
+    /** An empty billing object means "same as shipping", not "no billing address". */
+    public function test_an_empty_billing_object_falls_back_to_the_shipping_address(): void
+    {
+        $this->setUpCanada();
+        $this->addToCart($this->variant(), 1);
+        $quote = $this->checkoutQuote();
+
+        $this->placeOrder([
+            'email' => 'dana@clinic.ca',
+            'shipping_option' => $quote->json('shipping_options.0.code'),
+            'shipping_address' => $this->address(),
+            'billing_address' => [],
+        ])->assertCreated()
+            ->assertJsonPath('order.billing_address.line1', '10 Queen St W');
+    }
+
+    /**
+     * The services refuse an order by throwing a sentence meant for the
+     * customer, and the controller shows it. A database failure arrives the
+     * same way and must not be shown: its message is SQL and connection details.
+     */
+    public function test_a_database_failure_is_never_shown_to_the_customer(): void
+    {
+        $this->setUpCanada();
+        $this->addToCart($this->variant(), 1);
+        $quote = $this->checkoutQuote();
+
+        $this->mock(OrderService::class)->shouldReceive('place')->andThrow(new QueryException(
+            'mysql',
+            'insert into `order_addresses` (`type`, `first_name`) values (?, ?)',
+            ['billing', null],
+            new PDOException("SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'first_name' cannot be null"),
+        ));
+
+        $response = $this->placeOrder([
+            'email' => 'dana@clinic.ca',
+            'shipping_option' => $quote->json('shipping_options.0.code'),
+            'shipping_address' => $this->address(),
+        ]);
+
+        $response->assertStatus(500)
+            ->assertDontSee('SQLSTATE')
+            ->assertDontSee('order_addresses');
+        $this->assertStringContainsString('could not place your order', $response->json('message'));
     }
 }

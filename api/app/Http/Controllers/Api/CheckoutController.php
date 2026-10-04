@@ -137,6 +137,13 @@ class CheckoutController extends Controller
     {
         $isPickup = $request->input('fulfillment_type') === Order::TYPE_PICKUP;
 
+        // Billing is optional: leave it out and the order bills where it ships.
+        // But once the customer says it is somewhere else, it has to be a whole
+        // address. The storefront posts an unticked-and-untouched billing form
+        // as an address of blanks, and without these rules that went all the
+        // way to the database before anything objected.
+        $hasBilling = ! empty($request->input('billing_address'));
+
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
@@ -161,7 +168,17 @@ class CheckoutController extends Controller
             'shipping_address.phone' => ['nullable', 'string', 'max:40'],
 
             'billing_address' => ['nullable', 'array'],
-        ]);
+            'billing_address.first_name' => [Rule::requiredIf($hasBilling), 'string', 'max:80'],
+            'billing_address.last_name' => [Rule::requiredIf($hasBilling), 'string', 'max:80'],
+            'billing_address.company' => ['nullable', 'string', 'max:120'],
+            'billing_address.line1' => [Rule::requiredIf($hasBilling), 'string', 'max:160'],
+            'billing_address.line2' => ['nullable', 'string', 'max:160'],
+            'billing_address.city' => [Rule::requiredIf($hasBilling), 'string', 'max:80'],
+            'billing_address.province' => [Rule::requiredIf($hasBilling), 'string', 'size:2'],
+            'billing_address.postal_code' => [Rule::requiredIf($hasBilling), 'string', 'max:10'],
+            'billing_address.country' => ['nullable', 'string', 'size:2'],
+            'billing_address.phone' => ['nullable', 'string', 'max:40'],
+        ], [], $this->addressFieldNames());
 
         // Asking to pay by PayPal while it is switched off would place an order
         // the customer then has no way to settle, so it is refused up front
@@ -182,7 +199,11 @@ class CheckoutController extends Controller
         } catch (RuntimeException $e) {
             // Stock moving under a customer mid-checkout is an expected outcome,
             // not a server error — 422 so the frontend can show it on the form.
-            return response()->json(['message' => $e->getMessage()], 422);
+            // A database failure is neither expected nor theirs to read.
+            return $this->refusal(
+                $e,
+                'We could not place your order. Please try again, or contact us if it keeps happening.',
+            );
         }
 
         // The order now exists and is holding stock. Opening the provider-side
@@ -230,10 +251,48 @@ class CheckoutController extends Controller
                 // leave the customer thinking nothing happened while their stock
                 // is reserved and the admin can see the order.
                 $payload['paypal'] = null;
-                $payload['payment_error'] = $e->getMessage();
+                $payload['payment_error'] = $this->customerMessage(
+                    $e,
+                    'Your order was placed, but we could not open PayPal. Please try again.',
+                );
             }
         }
 
         return response()->json($payload, 201);
+    }
+
+    /**
+     * What to call each address field in a validation message.
+     *
+     * The storefront prints the message under the field it is about, so "The
+     * postal code field is required." says everything. Left to itself Laravel
+     * names the field after its key: "The billing address.postal code field".
+     *
+     * @return array<string, string>
+     */
+    protected function addressFieldNames(): array
+    {
+        $names = [
+            'first_name' => 'first name',
+            'last_name' => 'last name',
+            'company' => 'company',
+            'line1' => 'address',
+            'line2' => 'apartment or suite',
+            'city' => 'city',
+            'province' => 'province',
+            'postal_code' => 'postal code',
+            'country' => 'country',
+            'phone' => 'phone number',
+        ];
+
+        $attributes = [];
+
+        foreach (['shipping_address', 'billing_address'] as $address) {
+            foreach ($names as $field => $name) {
+                $attributes["{$address}.{$field}"] = $name;
+            }
+        }
+
+        return $attributes;
     }
 }

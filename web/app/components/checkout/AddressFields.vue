@@ -127,6 +127,7 @@ function applyLookup(found: ResolvedAddress) {
           :id="id"
           v-model="address.province"
           :autocomplete="auto('address-level1')"
+          :aria-invalid="err('province') ? 'true' : undefined"
           :class="control"
         >
           <option value="" disabled>Select a province</option>

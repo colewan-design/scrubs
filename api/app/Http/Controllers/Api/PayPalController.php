@@ -45,7 +45,7 @@ class PayPalController extends Controller
         try {
             return response()->json(['order_id' => $this->paypal->createOrderFor($order)]);
         } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return $this->refusal($e, 'We could not open PayPal for this order. Please try again.');
         }
     }
 
@@ -75,9 +75,13 @@ class PayPalController extends Controller
             $pending = $e->getMessage();
             $order->refresh();
         } catch (RuntimeException $e) {
-            // 422, not 500: every message that reaches here is something the
-            // customer can act on, and the checkout page shows it as-is.
-            return response()->json(['message' => $e->getMessage()], 422);
+            // 422, not 500: every message the services write is something the
+            // customer can act on, and the checkout page shows it as-is. The
+            // fallback is for the one kind that is not theirs to read.
+            return $this->refusal(
+                $e,
+                'We could not confirm that payment. Please check your order before trying again.',
+            );
         }
 
         return response()->json(array_filter([
