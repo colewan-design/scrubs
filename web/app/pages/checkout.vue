@@ -127,6 +127,42 @@ watch(selectedAddressId, (id) => {
 
 const quote = ref<CheckoutQuote | null>(null)
 const quoting = ref(false)
+
+/**
+ * Set once a quote has been on its way long enough to be worth saying so.
+ *
+ * Most re-quotes are back before anyone could notice, and a loading state
+ * that flashes for a tenth of a second reads as a glitch. So the page waits a
+ * moment before showing one — and how long depends on what was asked:
+ *
+ *   a new destination — a carrier is about to be asked, which takes three or
+ *     four seconds, and until it answers the figures on screen are the price
+ *     to somewhere else. Said almost at once.
+ *
+ *   the same destination — only the chosen service or the pickup switch
+ *     moved, and that answer is already known. Said only once it has plainly
+ *     gone slow; any sooner, and choosing Express would blink the summary.
+ */
+const quotingSlowly = ref(false)
+const PATIENCE_MS = { newDestination: 300, sameDestination: 1000 }
+let slowQuoteTimer: ReturnType<typeof setTimeout> | undefined
+/** The last address a delivery quote came back for. Empty until one has. */
+let quotedDestination = ''
+
+/**
+ * Whether to show shipping being worked out in place of the figures: a quote
+ * is taking a while, or there has never been one to show in the meantime.
+ */
+const calculating = computed(() => quoting.value && (quotingSlowly.value || !quote.value))
+
+/** For screen readers, which cannot see a spinner start or stop. */
+const quoteAnnouncement = ref('')
+
+watch(calculating, (now, before) => {
+  if (now) quoteAnnouncement.value = 'Calculating shipping for your address.'
+  else if (before) quoteAnnouncement.value = quote.value ? 'Shipping cost updated.' : ''
+})
+
 const placing = ref(false)
 const errors = ref<Record<string, string[]>>({})
 const generalError = ref('')
@@ -146,12 +182,22 @@ let quoteTicket = 0
 async function refreshQuote() {
   const ticket = ++quoteTicket
 
+  clearTimeout(slowQuoteTimer)
+
   if (!canRate.value) {
     quote.value = null
     quoting.value = false
+    quotingSlowly.value = false
+    quotedDestination = ''
 
     return
   }
+
+  // The same things the watcher below treats as a change of destination.
+  // Pickup goes nowhere, so it never counts as one.
+  const delivering = !isPickup.value
+  const where = [address.province, address.postal_code, Boolean(address.line1 && address.city)].join('|')
+  const newDestination = delivering && where !== quotedDestination
 
   // The whole address, not just the province. Table rates only need to know
   // the region, but a carrier quotes for the actual delivery.
@@ -166,6 +212,13 @@ async function refreshQuote() {
       }
 
   quoting.value = true
+
+  // Not reset here: if the quote this one replaces was already slow, the
+  // customer is still waiting, and the animation should not blink off and on.
+  slowQuoteTimer = setTimeout(() => {
+    if (ticket === quoteTicket) quotingSlowly.value = true
+  }, newDestination ? PATIENCE_MS.newDestination : PATIENCE_MS.sameDestination)
+
   try {
     const fresh = await api.post<CheckoutQuote>('/checkout/quote', {
       fulfillment_type: fulfillmentType.value,
@@ -176,13 +229,21 @@ async function refreshQuote() {
     if (ticket !== quoteTicket) return
 
     quote.value = fresh
+    if (delivering) quotedDestination = where
 
     // Adopt the server's choice: it knows which options actually exist.
     selectedOption.value = fresh.selected_shipping_option
   } catch {
-    if (ticket === quoteTicket) quote.value = null
+    if (ticket === quoteTicket) {
+      quote.value = null
+      quotedDestination = ''
+    }
   } finally {
-    if (ticket === quoteTicket) quoting.value = false
+    if (ticket === quoteTicket) {
+      clearTimeout(slowQuoteTimer)
+      quoting.value = false
+      quotingSlowly.value = false
+    }
   }
 }
 
@@ -991,7 +1052,24 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
               >
                 4
               </span>
-              <h2 class="font-body text-[16px] font-semibold text-ink-900">Shipping method</h2>
+              <div>
+                <h2 class="font-body text-[16px] font-semibold text-ink-900">Shipping method</h2>
+                <!-- Said as well as shown: a carrier takes a few seconds to
+                     price an address, and a dimmed list on its own looks like
+                     a page that has stopped. It goes in the line that is
+                     always here, so nothing below moves when the wait starts
+                     or ends. -->
+                <p class="mt-0.5 flex items-center gap-2 text-[13px] text-ink-500">
+                  <template v-if="calculating">
+                    <span
+                      class="size-3 shrink-0 animate-spin rounded-full border-2 border-ink-500 border-t-transparent"
+                      aria-hidden="true"
+                    />
+                    Calculating shipping for your address…
+                  </template>
+                  <template v-else>Priced for your delivery address.</template>
+                </p>
+              </div>
             </div>
 
             <NuxtLink
@@ -1041,13 +1119,33 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
             </div>
           </div>
 
+          <!-- For screen readers. Always in the page, so that a change to it is
+               announced; a status region that arrives already filled in often
+               is not. -->
+          <span class="sr-only" role="status" aria-live="polite">{{ quoteAnnouncement }}</span>
+
           <p v-if="!canRate" class="mt-4 text-[13px] text-ink-500">
             Choose a province to see delivery options and cost.
           </p>
-          <!-- Only before the first quote lands. Re-rating keeps the options on
-               screen and dims them, rather than emptying the section every time
-               a postal code gains a character. -->
-          <p v-else-if="quoting && !quote" class="mt-4 text-[13px] text-ink-500">Calculating…</p>
+          <!-- Only before the first quote lands, when there are no options to
+               dim: their places are held instead, at the options' own shape
+               so nothing jumps when they arrive. Re-rating keeps the options
+               on screen and dims them, rather than emptying the section every
+               time a postal code gains a character. -->
+          <div v-else-if="quoting && !quote" class="mt-4 space-y-2" aria-hidden="true">
+            <div
+              v-for="n in 2"
+              :key="n"
+              class="flex animate-pulse items-center gap-3 rounded-sm border border-edge-subtle px-4 py-3.5"
+            >
+              <span class="size-4 shrink-0 rounded-full bg-surface-warm-deep" />
+              <span class="min-w-0 flex-1 space-y-2">
+                <span class="block h-4 w-24 rounded-sm bg-surface-warm-deep" />
+                <span class="block h-3.5 w-32 rounded-sm bg-surface-warm-deep" />
+              </span>
+              <span class="h-4 w-16 shrink-0 rounded-sm bg-surface-warm-deep" />
+            </div>
+          </div>
           <p v-else-if="!quote?.shipping_options.length" class="mt-4 text-[13px] text-ink-500">
             No delivery options are configured for that destination yet — please contact us and we
             will arrange it.
@@ -1175,7 +1273,16 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
                 <span class="sr-only">Rated for your destination once a province is entered.</span>
               </dt>
               <dd class="tabular text-ink-900">
-                <span v-if="quote">{{ money(quote.shipping) }}</span>
+                <!-- In place of the figure, not beside it: until the carrier
+                     answers, the old one is the price to somewhere else. -->
+                <span v-if="calculating" class="inline-flex items-center gap-2 text-[13px] text-ink-500">
+                  <span
+                    class="size-3 shrink-0 animate-spin rounded-full border-2 border-ink-500 border-t-transparent"
+                    aria-hidden="true"
+                  />
+                  Calculating…
+                </span>
+                <span v-else-if="quote">{{ money(quote.shipping) }}</span>
                 <span v-else class="text-[13px] text-ink-500">Enter a destination</span>
               </dd>
             </div>
@@ -1198,14 +1305,33 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
                   Calculated from your delivery province and confirmed when the order is placed.
                 </span>
               </dt>
-              <dd class="tabular text-ink-900">{{ money(line.amount) }}</dd>
+              <!-- Tax is charged on shipping too, so it moves when shipping
+                   does. Held at the figure's own size: nothing shifts when
+                   the real one arrives. -->
+              <dd class="tabular text-ink-900">
+                <template v-if="calculating">
+                  <span
+                    class="inline-block h-3.5 w-16 animate-pulse rounded-sm bg-surface-warm-deep align-middle"
+                    aria-hidden="true"
+                  />
+                  <span class="sr-only">Calculating</span>
+                </template>
+                <template v-else>{{ money(line.amount) }}</template>
+              </dd>
             </div>
           </dl>
 
           <div class="mt-4 flex items-baseline justify-between gap-4 rounded-sm bg-surface-warm px-4 py-3.5">
             <p class="font-display text-[18px] text-ink-900">Total (CAD)</p>
             <p class="tabular text-[20px] font-semibold text-ink-900">
-              <span v-if="quote">{{ money(quote.grand_total) }}</span>
+              <template v-if="calculating">
+                <span
+                  class="inline-block h-5 w-28 animate-pulse rounded-sm bg-edge align-middle"
+                  aria-hidden="true"
+                />
+                <span class="sr-only">Calculating</span>
+              </template>
+              <span v-else-if="quote">{{ money(quote.grand_total) }}</span>
               <span v-else class="text-[14px] font-normal text-ink-500">—</span>
             </p>
           </div>
@@ -1362,7 +1488,7 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
 
               <p class="mt-3 text-[12px] leading-relaxed text-ink-500">
                 You'll pay
-                <span v-if="quote" class="tabular font-medium text-ink-700">{{ money(quote.grand_total) }}</span>
+                <span v-if="quote && !calculating" class="tabular font-medium text-ink-700">{{ money(quote.grand_total) }}</span>
                 in the PayPal window. Your order is confirmed the moment the payment clears.
               </p>
             </div>
@@ -1408,7 +1534,7 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
               :disabled="placing || quoting || !canPlace"
             >
               <Lock v-if="!placing" :size="15" aria-hidden="true" />
-              Place Order<template v-if="quote"> — {{ money(quote.grand_total) }}</template>
+              Place Order<template v-if="quote && !calculating"> — {{ money(quote.grand_total) }}</template>
             </UiBaseButton>
           </template>
 
