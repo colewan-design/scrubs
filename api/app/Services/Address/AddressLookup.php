@@ -25,10 +25,10 @@ use Throwable;
  * Either way the storefront asks `publicConfig()` first and does whatever it
  * says, so changing provider is an .env edit and not a frontend build.
  *
- * The Google half is written against Google's published request and response
- * shapes but NOT yet verified against the live API — that needs a key.
- * `suggest()` and `resolve()` are the two places to look first if a real
- * response disagrees.
+ * The Google half was first run against the live API on 2026-10-05, from the
+ * production server, and suggested and filled in real addresses in Ontario
+ * and British Columbia. `suggest()` and `resolve()` are still the two places
+ * to look first if a response ever disagrees with what is assumed here.
  *
  * A lookup is two steps, tied together by a session token the storefront makes
  * up: any number of `suggest()` calls while the customer types, then one
