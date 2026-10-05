@@ -494,7 +494,9 @@ class OrderService
         $parcel = Parcel::fromQuotedLines($quote->lines, $quote->subtotalCents);
         $code = $input['shipping_option'] ?? null;
 
-        $option = $code
+        // Pickup is among the options a delivery is offered, and it is free.
+        // An order being posted must never be able to claim it.
+        $option = $code && $code !== ShippingService::PICKUP_CODE
             ? $this->shipping->findOption($code, $destination, $parcel, $quote->retailSubtotalCents)
             : null;
 

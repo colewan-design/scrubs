@@ -276,6 +276,32 @@ class CheckoutTest extends TestCase
         $this->assertSame(2900, $options['Express']['cost']['cents']);
     }
 
+    /**
+     * Pickup is offered alongside the delivery services and costs nothing. A
+     * delivery order that names it — which is what the storefront sent after
+     * a customer chose pickup and then changed their mind — must not be
+     * quoted, or placed, as a delivery that is free.
+     */
+    public function test_a_delivery_order_cannot_be_priced_as_a_pickup(): void
+    {
+        $this->setUpCanada();
+        $this->addToCart($this->variant(5000), 2);
+
+        $quote = $this->checkoutQuote(['province' => 'ON', 'shipping_option' => 'pickup'])->assertOk();
+
+        $quote->assertJsonPath('fulfillment_type', Order::TYPE_SHIP);
+        $quote->assertJsonPath('shipping.cents', 1500);
+        $this->assertNotSame('pickup', $quote->json('selected_shipping_option'));
+
+        $this->placeOrder([
+            'email' => 'dana@clinic.ca',
+            'shipping_option' => 'pickup',
+            'shipping_address' => $this->address(),
+        ])->assertStatus(422);
+
+        $this->assertSame(0, Order::count());
+    }
+
     public function test_pickup_skips_shipping_entirely(): void
     {
         $this->setUpCanada();

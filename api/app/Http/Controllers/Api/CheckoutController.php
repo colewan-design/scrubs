@@ -75,15 +75,18 @@ class CheckoutController extends Controller
 
         // The selected option, or the cheapest as a sensible default.
         //
-        // Pickup is deliberately excluded from that default. It always costs
-        // nothing, so "cheapest" would silently switch a delivery order to
-        // collection — and quote a shipping cost and freight tax of zero for an
-        // order that is going to be posted.
+        // Pickup is deliberately excluded for a delivery order — from the
+        // default and from what may be asked for. It always costs nothing, so
+        // "cheapest" would silently switch a delivery order to collection, and
+        // quote a shipping cost and freight tax of zero for an order that is
+        // going to be posted. Asking for it by name did exactly that: the
+        // storefront still held "pickup" as the chosen option after a customer
+        // picked collection and then changed their mind.
         $selectable = $isPickup
             ? $options
             : array_filter($options, fn ($o) => $o->code !== ShippingService::PICKUP_CODE);
 
-        $selected = collect($options)->firstWhere('code', $data['shipping_option'] ?? null)
+        $selected = collect($selectable)->firstWhere('code', $data['shipping_option'] ?? null)
             ?? collect($selectable)->sortBy(fn ($o) => $o->costCents)->first();
 
         $shippingCents = $selected?->costCents ?? 0;
