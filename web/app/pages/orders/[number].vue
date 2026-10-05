@@ -312,7 +312,10 @@ useSeoMeta({ title: `Order ${route.params.number}`, robots: 'noindex' })
               <dd class="tabular text-sage">−{{ order.totals.discount.formatted }}</dd>
             </div>
             <div class="flex justify-between gap-4">
-              <dt class="text-ink-700">{{ isPickup ? 'Pickup' : 'Shipping' }}</dt>
+              <dt class="text-ink-700">
+                {{ isPickup ? 'Pickup' : 'Shipping' }}
+                <span v-if="!isPickup && order.shipping_method" class="text-ink-500">· {{ order.shipping_method }}</span>
+              </dt>
               <dd class="tabular text-ink-900">{{ order.totals.shipping.formatted }}</dd>
             </div>
             <div v-for="tax in order.taxes ?? []" :key="tax.label" class="flex justify-between gap-4">

@@ -136,36 +136,71 @@ const isPickup = computed(() => fulfillmentType.value === 'pickup')
 /** Shipping cannot be rated until we know where it is going. */
 const canRate = computed(() => isPickup.value || address.province.length === 2)
 
+/**
+ * The most recent quote asked for. Live carrier rates take seconds rather than
+ * milliseconds, so replies can arrive out of order — and a slow answer for the
+ * postal code the customer has since corrected must not replace the newer one.
+ */
+let quoteTicket = 0
+
 async function refreshQuote() {
+  const ticket = ++quoteTicket
+
   if (!canRate.value) {
     quote.value = null
+    quoting.value = false
 
     return
   }
 
+  // The whole address, not just the province. Table rates only need to know
+  // the region, but a carrier quotes for the actual delivery.
+  const destination = isPickup.value
+    ? {}
+    : {
+        line1: address.line1 || undefined,
+        line2: address.line2 || undefined,
+        city: address.city || undefined,
+        province: address.province,
+        postal_code: address.postal_code,
+      }
+
   quoting.value = true
   try {
-    quote.value = await api.post<CheckoutQuote>('/checkout/quote', {
+    const fresh = await api.post<CheckoutQuote>('/checkout/quote', {
       fulfillment_type: fulfillmentType.value,
-      province: isPickup.value ? undefined : address.province,
-      postal_code: isPickup.value ? undefined : address.postal_code,
+      ...destination,
       shipping_option: selectedOption.value,
     })
 
+    if (ticket !== quoteTicket) return
+
+    quote.value = fresh
+
     // Adopt the server's choice: it knows which options actually exist.
-    selectedOption.value = quote.value.selected_shipping_option
+    selectedOption.value = fresh.selected_shipping_option
   } catch {
-    quote.value = null
+    if (ticket === quoteTicket) quote.value = null
   } finally {
-    quoting.value = false
+    if (ticket === quoteTicket) quoting.value = false
   }
 }
 
-// Province and postal code drive the rate table; the chosen service and the
-// delivery/pickup switch change the total. Anything else is just form filling.
+// Province and postal code drive the rates; the chosen service and the
+// delivery/pickup switch change the total. Anything else is just form filling
+// — with one exception. A carrier will not quote without a street and a town,
+// so the moment both exist is worth asking again. Only that moment: a street
+// cleared on its way to being retyped is not a new destination, and asking
+// then would swap the carrier's rates for table rates and back, dropping an
+// Express choice along the way.
 watch(
-  () => [fulfillmentType.value, address.province, address.postal_code, selectedOption.value],
-  () => refreshQuote(),
+  () => ({
+    priced: [fulfillmentType.value, address.province, address.postal_code, selectedOption.value].join('|'),
+    street: Boolean(address.line1 && address.city),
+  }),
+  (now, before) => {
+    if (now.priced !== before.priced || (now.street && !before.street)) refreshQuote()
+  },
 )
 
 onMounted(() => {
@@ -489,7 +524,14 @@ async function place() {
     }
 
     if (e?.data?.errors) await showFieldErrors(e.data.errors)
-    else generalError.value = e?.data?.message || 'Something went wrong. Please try again.'
+    else {
+      generalError.value = e?.data?.message || 'Something went wrong. Please try again.'
+
+      // One thing the API refuses is a delivery service that has stopped
+      // being offered — carrier rates move, and this page may have been open
+      // a while. Asking again puts the services that do exist on screen.
+      refreshQuote()
+    }
   } finally {
     placing.value = false
   }
@@ -543,6 +585,9 @@ async function startPayPal(): Promise<string> {
     if (e?.data?.errors) await showFieldErrors(e.data.errors)
     else if (!generalError.value) {
       generalError.value = e?.data?.message || 'We could not start the payment. Please try again.'
+
+      // As in place(): the refusal may be a delivery service that has gone.
+      if (!placedOrder.value) refreshQuote()
     }
 
     // Rethrown so the SDK abandons the payment rather than opening a window
@@ -620,7 +665,7 @@ function onPayPalError(message: string) {
 const contactComplete = computed(() => /.+@.+\..+/.test(contact.email))
 
 const paypalReady = computed(
-  () => canPlace.value && contactComplete.value && addressComplete.value && !placing.value,
+  () => canPlace.value && contactComplete.value && addressComplete.value && !placing.value && !quoting.value,
 )
 
 const fieldError = (path: string) => errors.value[path]?.[0]
@@ -1349,7 +1394,9 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
 
             <!-- Every path but PayPal places the order from here. PayPal's own
                  button does it instead, because PayPal needs the order to exist
-                 before it will open — a second button would be a second order. -->
+                 before it will open — a second button would be a second order.
+                 Held back while a quote is on its way: the figure on it, and
+                 possibly the delivery service behind it, is about to change. -->
             <UiBaseButton
               v-if="!payingByPayPal"
               type="submit"
@@ -1358,7 +1405,7 @@ useSeoMeta({ title: 'Checkout', robots: 'noindex' })
               block
               class="mt-4"
               :loading="placing"
-              :disabled="placing || !canPlace"
+              :disabled="placing || quoting || !canPlace"
             >
               <Lock v-if="!placing" :size="15" aria-hidden="true" />
               Place Order<template v-if="quote"> — {{ money(quote.grand_total) }}</template>

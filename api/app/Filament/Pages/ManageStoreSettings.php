@@ -7,6 +7,7 @@ use App\Services\Payments\PayPalClient;
 use App\Services\Payments\StripeGateway;
 use App\Support\Settings;
 use BackedEnum;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -92,11 +93,19 @@ class ManageStoreSettings extends Page
                                 ->required()
                                 ->helperText('Measured on the retail subtotal, before tax.'),
 
-                            TextInput::make(self::field('shipping.provider'))
-                                ->label('Rating provider')
-                                ->helperText('table_rate until Stallion Express credentials are supplied.')
-                                ->disabled()
-                                ->dehydrated(false),
+                            Select::make(self::field('shipping.provider'))
+                                ->label('Shipping rates come from')
+                                ->options([
+                                    'table_rate' => 'The rate table (Shipping zones)',
+                                    'stallion' => 'Stallion Express — live rates',
+                                ])
+                                ->selectablePlaceholder(false)
+                                // Nothing to switch to without a token, and an
+                                // option that silently does nothing is worse
+                                // than one that explains why it is greyed out.
+                                ->disableOptionWhen(fn (string $value): bool => $value === 'stallion'
+                                    && ! config('services.stallion.key'))
+                                ->helperText(self::stallionStatus()),
                         ])->columns(2),
 
                         Section::make('Local pickup')
@@ -293,6 +302,27 @@ class ManageStoreSettings extends Page
     protected static function field(string $key): string
     {
         return str_replace('.', '_', $key);
+    }
+
+    /**
+     * What choosing Stallion does, or why it cannot be chosen yet.
+     *
+     * The sandbox warning is the one that matters: test rates look exactly
+     * like real ones at checkout, and are charged exactly like them.
+     */
+    protected static function stallionStatus(): string
+    {
+        if (! config('services.stallion.key')) {
+            return 'Live rates need a Stallion token on the server (STALLION_API_KEY). '
+                .'Until then every order is rated from the rate table.';
+        }
+
+        $offer = 'With live rates, checkout offers Standard (the cheapest tracked service Stallion quotes '
+            .'for the address) and Express (the fastest). The rate table still answers whenever Stallion cannot.';
+
+        return config('services.stallion.mode') === 'sandbox'
+            ? 'Connected to the Stallion SANDBOX, whose rates are test data — do not use it for real orders. '.$offer
+            : $offer;
     }
 
     /**

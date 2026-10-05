@@ -51,14 +51,36 @@ return [
     */
 
     /*
-    | Stallion Express live shipping rates (§5). Unset until the client
-    | supplies an account and API key; ShippingService falls back to table
-    | rates while that is the case.
+    | Stallion Express live shipping rates (§5), on Stallion's v5 API. Unset
+    | until the client supplies an account and a token; ShippingService falls
+    | back to table rates while that is the case, and whenever Stallion cannot
+    | answer.
+    |
+    | `key` is a v5 token carrying the `rates:read` scope — nothing more is
+    | needed to quote. `mode` picks the server, and the token must have been
+    | issued by that one: `live` rates real addresses on the client's account,
+    | `sandbox` answers with test data that must never price a real order.
+    |
+    | `timeout` is how long checkout will wait, in seconds; a complete answer
+    | takes Stallion three to four. `cache_minutes` is how long an answer is
+    | reused, which is what keeps the price charged the same as the price
+    | shown.
+    |
+    | `cm3_per_kg` is how much space a kilogram of order is assumed to take
+    | up. Stallion will not quote without a parcel size and the catalogue
+    | records none, so the size is worked out from the weight. 5000 is folded
+    | clothing in a mailer; raise it if orders go out in roomier cartons, and
+    | quotes rise with it.
     */
     'stallion' => [
         'key' => env('STALLION_API_KEY'),
-        'base_url' => env('STALLION_BASE_URL', 'https://ship.stallionexpress.ca/api/v4'),
-        'timeout' => (int) env('STALLION_TIMEOUT', 6),
+        'mode' => env('STALLION_MODE', 'live'),
+        'base_url' => env('STALLION_MODE', 'live') === 'sandbox'
+            ? 'https://sandbox.stallion.ca/api/v5'
+            : 'https://ship.stallion.ca/api/v5',
+        'timeout' => (int) env('STALLION_TIMEOUT', 10),
+        'cache_minutes' => (int) env('STALLION_CACHE_MINUTES', 30),
+        'cm3_per_kg' => (int) env('STALLION_CM3_PER_KG', 5000),
     ],
 
     /*

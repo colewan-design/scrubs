@@ -47,6 +47,11 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'fulfillment_type' => ['nullable', Rule::in([Order::TYPE_SHIP, Order::TYPE_PICKUP])],
+            // Province alone is enough for table rates and tax. The rest is
+            // what a live carrier quote is for: one actual address.
+            'line1' => ['nullable', 'string', 'max:160'],
+            'line2' => ['nullable', 'string', 'max:160'],
+            'city' => ['nullable', 'string', 'max:80'],
             'province' => ['nullable', 'string', 'size:2'],
             'postal_code' => ['nullable', 'string', 'max:10'],
             'country' => ['nullable', 'string', 'size:2'],

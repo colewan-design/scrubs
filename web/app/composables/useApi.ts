@@ -295,6 +295,8 @@ export interface Order {
   payment_status: string
   fulfillment_status: string
   fulfillment_type: 'ship' | 'pickup'
+  /** The delivery service chosen — "Standard", "Express". Null on older orders. */
+  shipping_method?: string | null
   email: string
   phone: string | null
   customer_note: string | null

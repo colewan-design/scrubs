@@ -196,10 +196,12 @@ A Canadian region keeps customer data in Canada, which keeps the PIPEDA position
 **Not blocking.** Orders are rated from a table of fixed rates in the admin dashboard until a key
 exists and live rating is switched on, so a late key costs accuracy, not launch.
 
-`ship.stallionexpress.ca` → **Settings** → **API** → generate a token.
+`ship.stallion.ca` → **Settings** → **Integrations** → **API** → create a **v5** token with the single
+scope `rates:read`. It can ask for prices and nothing else — it cannot buy a label or spend credits. An
+older v4 key will not work.
 
-**Send back:** the API key, and which services to offer at checkout. Recommended: the cheapest
-qualifying service plus one expedited option, rather than a long list.
+**Send back:** the token. Checkout then offers two services for each customer's address rather than a
+long list: *Standard*, the cheapest tracked service Stallion quotes, and *Express*, the fastest.
 
 ---
 

@@ -25,6 +25,8 @@ class OrderResource extends JsonResource
             'payment_status' => $this->payment_status,
             'fulfillment_status' => $this->fulfillment_status,
             'fulfillment_type' => $this->fulfillment_type,
+            // "Standard" or "Express". Null on orders placed before it was kept.
+            'shipping_method' => $this->shipping_method,
             'email' => $this->email,
             'phone' => $this->phone,
             'customer_note' => $this->customer_note,

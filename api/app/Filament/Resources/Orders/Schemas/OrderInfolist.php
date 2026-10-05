@@ -32,7 +32,9 @@ class OrderInfolist
                     TextEntry::make('phone')->placeholder('—'),
                     TextEntry::make('fulfillment_type')
                         ->label('Method')
-                        ->formatStateUsing(fn (string $state) => $state === Order::TYPE_PICKUP ? 'Local pickup' : 'Ship'),
+                        ->formatStateUsing(fn (string $state, Order $record) => $state === Order::TYPE_PICKUP
+                            ? 'Local pickup'
+                            : self::shippingMethod($record)),
                     TextEntry::make('payment_status')->label('Payment'),
                     TextEntry::make('fulfillment_status')->label('Fulfilment'),
                     TextEntry::make('pricing_tier_name')->label('Wholesale tier')->placeholder('Retail'),
@@ -148,5 +150,31 @@ class OrderInfolist
                         ]),
                 ]),
         ]);
+    }
+
+    /**
+     * "Ship — Express (Purolator Express)": what the customer paid for, then
+     * the carrier's service it was on the day, which is the label to buy.
+     *
+     * A table rate names no carrier, and an order from before the service was
+     * recorded names nothing at all; both say only as much as they know.
+     */
+    protected static function shippingMethod(Order $order): string
+    {
+        if (! $order->shipping_method) {
+            return 'Ship';
+        }
+
+        $carrier = (string) $order->shipping_carrier;
+        $service = (string) $order->shipping_service;
+
+        // "Intelcom" + "Intelcom Standard" is one name, not two.
+        $carried = $carrier !== '' && stripos($service, $carrier) !== 0
+            ? trim($carrier.' '.$service)
+            : $service;
+
+        return $carried === '' || $carried === $order->shipping_method
+            ? "Ship — {$order->shipping_method}"
+            : "Ship — {$order->shipping_method} ({$carried})";
     }
 }

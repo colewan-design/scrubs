@@ -122,6 +122,13 @@ class OrderService
                 'payment_status' => Order::PAYMENT_PENDING,
                 'fulfillment_status' => Order::FULFILLMENT_UNFULFILLED,
                 'fulfillment_type' => $isPickup ? Order::TYPE_PICKUP : Order::TYPE_SHIP,
+                // What was chosen, not just what it cost: a live carrier rate
+                // is a different figure for every address, so the amount alone
+                // no longer says whether this parcel goes Standard or Express.
+                'shipping_method' => $option->name,
+                'shipping_carrier' => $option->carrier,
+                'shipping_service' => $option->service,
+                'shipping_service_code' => $option->serviceCode,
                 'pricing_tier_id' => $quote->tier?->id,
                 'pricing_tier_name' => $quote->tier?->name,
                 'subtotal_cents' => $quote->retailSubtotalCents,

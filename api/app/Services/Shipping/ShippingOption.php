@@ -16,6 +16,12 @@ final class ShippingOption
         public readonly string $provider = 'table_rate',
         /** Set when a free-shipping threshold overrode the table price. */
         public readonly bool $freeThresholdApplied = false,
+        /**
+         * The carrier's own name for the service ("canada_post.expedited"),
+         * where there is one. Not shown to anybody: it is what buying the
+         * label asks for, so it is kept with the order.
+         */
+        public readonly ?string $serviceCode = null,
     ) {}
 
     public function withCost(int $costCents, bool $freeThresholdApplied = false): self
@@ -23,6 +29,7 @@ final class ShippingOption
         return new self(
             $this->code, $this->name, $costCents, $this->carrier, $this->service,
             $this->deliveryDaysMin, $this->deliveryDaysMax, $this->provider, $freeThresholdApplied,
+            $this->serviceCode,
         );
     }
 
@@ -36,9 +43,11 @@ final class ShippingOption
         $min = $this->deliveryDaysMin ?? $this->deliveryDaysMax;
         $max = $this->deliveryDaysMax ?? $this->deliveryDaysMin;
 
-        return $min === $max
-            ? "{$min} business days"
-            : "{$min}–{$max} business days";
+        if ($min === $max) {
+            return $min === 1 ? '1 business day' : "{$min} business days";
+        }
+
+        return "{$min}–{$max} business days";
     }
 
     public function toArray(): array
