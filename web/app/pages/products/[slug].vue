@@ -284,9 +284,9 @@ useHead({
             {{ product.short_description }}
           </p>
 
-          <!-- Wholesale. Guests get the boxed pitch; members get the figure and
-               the full ladder, which is the thing the box is promising. -->
-          <div class="mt-5">
+          <!-- Wholesale. Guests get the boxed pitch; members get the complete
+               price ladder and live basket progress in one decision block. -->
+          <div v-if="product.wholesale_locked" class="mt-5">
             <ShopWholesaleLock
               :locked="product.wholesale_locked"
               :wholesale-price="product.wholesale_from ?? null"
@@ -294,12 +294,29 @@ useHead({
               :image="product.images?.[0] ?? null"
               panel
             />
+          </div>
+
+          <section
+            v-else-if="product.wholesale_tiers?.length"
+            class="mt-7"
+            aria-labelledby="wholesale-pricing-title"
+          >
+            <h2 id="wholesale-pricing-title" class="font-display text-[27px] leading-tight text-ink-900 sm:text-[30px]">
+              Buy more. Save more.
+            </h2>
+            <p class="mt-0.5 text-[11px] font-medium tracking-[0.16em] text-ink-500 uppercase">
+              Wholesale pricing
+            </p>
             <ShopWholesaleLadder
-              v-if="product.wholesale_tiers?.length"
               :tiers="product.wholesale_tiers"
               :active-tier-id="cart.tier?.id ?? null"
+              :unit-label="product.product_type === 'set' ? 'set' : 'item'"
             />
-          </div>
+            <ShopTierProgress v-if="!cart.isEmpty" :quote="cart.quote" />
+            <p class="mt-2.5 text-[12px] leading-relaxed text-ink-400 sm:text-[13px]">
+              Wholesale pricing updates automatically across your eligible basket.
+            </p>
+          </section>
 
           <!-- Colour -->
           <fieldset v-if="product.colors?.length" class="mt-7">
@@ -431,9 +448,6 @@ useHead({
               </UiBaseButton>
             </div>
           </div>
-
-          <!-- Live tier feedback right where the decision is made. -->
-          <ShopTierProgress v-if="!cart.isEmpty" :quote="cart.quote" class="mt-6" />
 
           <ShopTrustRow class="mt-7" />
 
