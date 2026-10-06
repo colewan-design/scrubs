@@ -98,6 +98,15 @@ const activeImage = ref(0)
 watch(selectedColor, () => { activeImage.value = 0 })
 
 /**
+ * A rung on the ladder can set a quantity in the dozens, so switching to a size
+ * with less stock has to pull it back down — the stepper caps new increments
+ * but cannot undo a quantity that was already valid for the previous variant.
+ */
+watch(variant, (v) => {
+  if (v && qty.value > v.available) qty.value = Math.max(1, v.available)
+})
+
+/**
  * No size is preselected, deliberately — the redesign draws one chosen, but
  * defaulting the control that decides what arrives in the box turns a shopper's
  * omission into a wrong-size order. Until a size is picked the stock line falls
@@ -310,11 +319,15 @@ useHead({
             <ShopWholesaleLadder
               :tiers="product.wholesale_tiers"
               :active-tier-id="cart.tier?.id ?? null"
+              :qty="qty"
+              :max-qty="variant?.available ?? null"
               :unit-label="product.product_type === 'set' ? 'set' : 'item'"
+              @select="qty = $event"
             />
             <ShopTierProgress v-if="!cart.isEmpty" :quote="cart.quote" />
             <p class="mt-2.5 text-[12px] leading-relaxed text-ink-400 sm:text-[13px]">
-              Wholesale pricing updates automatically across your eligible basket.
+              Choose a tier to set the quantity. Wholesale pricing then updates
+              automatically across your eligible basket.
             </p>
           </section>
 
