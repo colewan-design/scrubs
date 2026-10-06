@@ -168,7 +168,7 @@ class CatalogSeeder extends Seeder
                                 default => rand(4, 25),
                             },
                             'reserved_qty' => 0,
-                            'weight_grams' => $product->product_type === 'set' ? 480 : 260,
+                            'weight_grams' => $product->product_type === 'set' ? 500 : 260,
                             'is_active' => true,
                         ]
                     );
