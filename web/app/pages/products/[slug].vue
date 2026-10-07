@@ -24,6 +24,17 @@ const product = computed(() => data.value!.data)
  */
 const entryTierName = computed(() => product.value.wholesale_tiers?.[0]?.name ?? null)
 
+/**
+ * Free shipping is an admin-editable threshold on the order, not a field on a
+ * tier, so the ladder is handed the number and works out for itself which rungs
+ * cannot be reached without clearing it. Shared useAsyncData key with the
+ * header, so asking here costs no extra request.
+ */
+const { freeShipping } = await useWholesaleSummary()
+
+/** "set" reads wrong for a single garment and "item" reads wrong for a set. */
+const unitLabel = computed(() => (product.value.product_type === 'set' ? 'set' : 'item'))
+
 const selectedColor = ref<number | null>(product.value.colors?.[0]?.id ?? null)
 const selectedSize = ref<number | null>(null)
 const qty = ref(1)
@@ -281,9 +292,6 @@ useHead({
             {{ product.name }}
           </h1>
 
-          <!-- No rating row: there is no reviews table, endpoint or admin
-               resource, and the redesign's 4.8 / 124 figures were invented.
-               ShopStarRating is kept for when real reviews exist. -->
           <p class="tabular mt-4 text-[26px] font-medium text-ink-900">
             <span v-if="priceIsFrom" class="text-[15px] font-normal text-ink-500">from </span
             >{{ displayPrice.currency }} {{ displayPrice.formatted }}
@@ -293,43 +301,11 @@ useHead({
             {{ product.short_description }}
           </p>
 
-          <!-- Wholesale. Guests get the boxed pitch; members get the complete
-               price ladder and live basket progress in one decision block. -->
-          <div v-if="product.wholesale_locked" class="mt-5">
-            <ShopWholesaleLock
-              :locked="product.wholesale_locked"
-              :wholesale-price="product.wholesale_from ?? null"
-              :tier-name="entryTierName"
-              :image="product.images?.[0] ?? null"
-              panel
-            />
-          </div>
-
-          <section
-            v-else-if="product.wholesale_tiers?.length"
-            class="mt-7"
-            aria-labelledby="wholesale-pricing-title"
-          >
-            <h2 id="wholesale-pricing-title" class="font-display text-[27px] leading-tight text-ink-900 sm:text-[30px]">
-              Buy more. Save more.
-            </h2>
-            <p class="mt-0.5 text-[11px] font-medium tracking-[0.16em] text-ink-500 uppercase">
-              Wholesale pricing
-            </p>
-            <ShopWholesaleLadder
-              :tiers="product.wholesale_tiers"
-              :active-tier-id="cart.tier?.id ?? null"
-              :qty="qty"
-              :max-qty="variant?.available ?? null"
-              :unit-label="product.product_type === 'set' ? 'set' : 'item'"
-              @select="qty = $event"
-            />
-            <ShopTierProgress v-if="!cart.isEmpty" :quote="cart.quote" />
-            <p class="mt-2.5 text-[12px] leading-relaxed text-ink-400 sm:text-[13px]">
-              Choose a tier to set the quantity. Wholesale pricing then updates
-              automatically across your eligible basket.
-            </p>
-          </section>
+          <!-- Colour and size come before the price ladder: both decide which
+               variant is in play, and the ladder's stock ceiling and selected
+               rung are read off that variant. Asking for the quantity first put
+               the two controls that answer "which one" below the block that
+               depends on them. -->
 
           <!-- Colour -->
           <fieldset v-if="product.colors?.length" class="mt-7">
@@ -396,6 +372,54 @@ useHead({
               >{{ size.name }}</button>
             </div>
           </fieldset>
+
+          <!-- Wholesale. Guests get the boxed pitch; members get the complete
+               price ladder and live basket progress in one decision block. -->
+          <div v-if="product.wholesale_locked" class="mt-7">
+            <ShopWholesaleLock
+              :locked="product.wholesale_locked"
+              :wholesale-price="product.wholesale_from ?? null"
+              :tier-name="entryTierName"
+              :image="product.images?.[0] ?? null"
+              panel
+            />
+          </div>
+
+          <!-- `ladder` carries the reference palette and Inter; everything
+               inside it is specified against that sheet rather than the warm
+               storefront tokens. -->
+          <section
+            v-else-if="product.wholesale_tiers?.length"
+            class="ladder mt-7 rounded-md border border-(--ladder-edge) p-4 sm:p-5"
+            aria-labelledby="wholesale-pricing-title"
+          >
+            <h2
+              id="wholesale-pricing-title"
+              class="mb-3 font-[inherit] text-[12px] font-medium tracking-[0.06em] text-(--ladder-slate) uppercase"
+            >
+              Buy more, save more
+            </h2>
+
+            <ShopWholesaleLadder
+              :tiers="product.wholesale_tiers"
+              :retail-price="displayPrice"
+              :free-shipping-cents="freeShipping?.cents ?? null"
+              :active-tier-id="cart.tier?.id ?? null"
+              :qty="qty"
+              :max-qty="variant?.available ?? null"
+              :unit-label="unitLabel"
+              @select="qty = $event"
+            />
+
+            <div v-if="!cart.isEmpty" class="mt-4 border-t border-(--ladder-edge) pt-4">
+              <ShopTierProgress :quote="cart.quote" />
+            </div>
+
+            <p class="mt-3 text-[12px] leading-relaxed text-(--ladder-slate)">
+              Choose a tier to set the quantity. Wholesale pricing then updates
+              automatically across your eligible basket.
+            </p>
+          </section>
 
           <!-- Stock + SKU. The dot is decorative; the words carry the state. -->
           <div class="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">

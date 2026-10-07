@@ -135,6 +135,32 @@
   }
 }
 
+/* ==========================================================================
+   Wholesale ladder — reference palette
+
+   The product page's tier block is specified against its own sheet (Inter,
+   cool slate and navy) rather than the warm tokens in @theme above. The two
+   palettes genuinely disagree, so these are defined on a class instead of in
+   @theme: custom properties inherit down the subtree they are declared on, so
+   nothing outside .ladder can reach them and the rest of the storefront keeps
+   its own system.
+   ========================================================================== */
+
+.ladder {
+  --ladder-ink: #111827;
+  --ladder-slate: #475569;
+  --ladder-orange: #c2410c;
+  --ladder-green: #39805b;
+  --ladder-navy: #244a78;
+  --ladder-edge: #d9dde3;
+  --ladder-bar: #6484a6;
+  /* Not in the sheet: the bar needs an unfilled half. Taken from the card
+     border so the two greys in the block are the same grey. */
+  --ladder-track: #e9ecf0;
+
+  font-family: "Inter", Arial, sans-serif;
+}
+
 /* iOS Safari zooms the viewport when the control it focuses sets type under
    16px, and never zooms back out — the rest of the page is left oversized and
    scrolling sideways for the whole session. Every field on the site was 13-15px.

@@ -30,17 +30,14 @@ const targetAmount = computed(() => {
 </script>
 
 <template>
-  <div v-if="quote" class="mt-3 rounded-sm border border-edge bg-white px-4 py-3.5 sm:px-5">
+  <div v-if="quote" class="progress">
     <template v-if="prompt?.qualifies">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="font-display text-[18px] leading-tight text-ink-900">Your basket qualifies</h3>
-        <span class="rounded-full border border-edge px-2.5 py-1 text-[10px] leading-none text-ink-500">
-          Sign in to apply
-        </span>
+      <div class="progress__row">
+        <h3 class="progress__title">Your basket qualifies</h3>
       </div>
-      <p class="mt-1 text-[13px] text-ink-700">
+      <p class="progress__note">
         Create an account or sign in to save
-        <span class="tabular font-semibold text-sage">{{ prompt.saving?.formatted }}</span>.
+        <span class="tabular progress__amount">{{ prompt.saving?.formatted }}</span>.
       </p>
       <div class="mt-3 flex flex-wrap gap-2">
         <UiBaseButton to="/account/register" variant="wholesale" size="sm">Create an account</UiBaseButton>
@@ -49,50 +46,101 @@ const targetAmount = computed(() => {
     </template>
 
     <template v-else-if="next && next.subtotal_gap">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="font-display text-[18px] leading-tight text-ink-900">Your basket progress</h3>
-        <span class="rounded-full border border-edge px-2.5 py-1 text-[10px] leading-none text-ink-500">
-          Live basket
-        </span>
+      <div class="progress__row">
+        <h3 class="progress__title">Your basket progress</h3>
+        <!-- The sheet pairs the heading with the raw figures rather than a
+             percentage; the bar already carries the proportion. -->
+        <p class="tabular progress__figures">{{ currentAmount }} / {{ targetAmount }}</p>
       </div>
 
-      <p class="mt-1.5 text-[14px] text-ink-700">
-        <span class="tabular font-semibold text-ink-900">{{ currentAmount }}</span>
-        <span class="tabular"> / {{ targetAmount }}</span>
-        toward {{ next.name }}
-      </p>
-
-      <div class="mt-2.5 flex items-center gap-3">
-        <div
-          class="h-2 flex-1 overflow-hidden rounded-full bg-[#ececeb]"
-          role="progressbar"
-          :aria-valuenow="progress"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          :aria-label="`Progress toward ${next.name}`"
-        >
-          <div class="h-full rounded-full bg-[#5c907e] transition-all duration-300" :style="{ width: `${progress}%` }" />
-        </div>
-        <span class="tabular w-9 text-right text-[12px] text-ink-500">{{ progress }}%</span>
+      <div
+        class="progress__track"
+        role="progressbar"
+        :aria-valuenow="progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-label="`Progress toward ${next.name}`"
+      >
+        <div class="progress__fill" :style="{ width: `${progress}%` }" />
       </div>
 
-      <p class="mt-2 text-[13px] leading-snug text-sage">
+      <p class="progress__note">
         <template v-if="tier">
-          {{ tier.name }} unlocked! Add {{ next.subtotal_gap.formatted }} more to reach {{ next.name }}.
+          {{ tier.name }} unlocked. Add {{ next.subtotal_gap.formatted }} more to unlock {{ next.name }}.
         </template>
         <template v-else>
-          Add {{ next.subtotal_gap.formatted }} more to reach {{ next.name }}.
+          Add {{ next.subtotal_gap.formatted }} more to unlock {{ next.name }}.
         </template>
       </p>
     </template>
 
     <template v-else-if="tier">
-      <div class="flex items-center gap-2 text-sage">
-        <span class="grid size-6 place-items-center rounded-full bg-[#dcece5]" aria-hidden="true">
-          <Check :size="13" :stroke-width="2.2" />
-        </span>
-        <p class="text-[13px] font-medium">{{ tier.name }} wholesale pricing applied</p>
-      </div>
+      <p class="progress__applied">
+        <Check :size="15" :stroke-width="2" aria-hidden="true" />
+        {{ tier.name }} wholesale pricing applied
+      </p>
     </template>
   </div>
 </template>
+
+<style scoped>
+.progress__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* Explicit: the global h1–h3 rule puts headings in the display serif at
+   weight 400, and this block is specified in Inter Semibold. */
+.progress__title {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ladder-ink);
+}
+
+.progress__figures {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ladder-slate);
+}
+
+.progress__track {
+  overflow: hidden;
+  height: 8px;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  background: var(--ladder-track);
+}
+
+.progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ladder-bar);
+  transition: width 300ms ease;
+}
+
+.progress__note {
+  margin-top: 0.55rem;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ladder-slate);
+}
+
+.progress__amount {
+  font-weight: 600;
+  color: var(--ladder-green);
+}
+
+.progress__applied {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ladder-green);
+}
+</style>
