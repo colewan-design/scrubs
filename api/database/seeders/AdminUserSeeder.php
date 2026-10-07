@@ -122,7 +122,10 @@ class AdminUserSeeder extends Seeder
             return;
         }
 
-        if (! User::withTrashed()->where('email', self::RETIRED_EMAIL)->exists()) {
+        // Deliberately not withTrashed(): a soft-deleted placeholder is retired
+        // already — it cannot be retrieved to authenticate — and warning about
+        // it forever would train the reader to ignore the message.
+        if (! User::where('email', self::RETIRED_EMAIL)->exists()) {
             return;
         }
 
