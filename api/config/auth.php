@@ -114,4 +114,28 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Seeded Administrator
+    |--------------------------------------------------------------------------
+    |
+    | The account AdminUserSeeder creates so a fresh install has somebody who
+    | can open /admin (§12). These live in config rather than being read from
+    | env() inside the seeder because `config:cache` makes env() return null
+    | everywhere outside this directory — read straight from env() the seeder
+    | would silently ignore a configured password on exactly the deployments
+    | that set one.
+    |
+    | Leave ADMIN_PASSWORD unset in development and the seeder falls back to a
+    | known local password. Outside local it instead mints a random one and
+    | prints it once, so the fallback can never become a live credential.
+    |
+    */
+
+    'admin' => [
+        'name' => env('ADMIN_NAME', 'BulkScrubs Direct Administrator'),
+        'email' => env('ADMIN_EMAIL', 'admin@bulkscrubsdirect.ca'),
+        'password' => env('ADMIN_PASSWORD'),
+    ],
+
 ];

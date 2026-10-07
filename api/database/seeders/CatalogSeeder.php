@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\Size;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -195,18 +194,9 @@ class CatalogSeeder extends Seeder
                 ->delete();
         }
 
-        // Local admin account for the Filament panel. Credentials are rotated at
-        // handover (§12) — this exists for development only.
-        User::updateOrCreate(
-            ['email' => 'admin@bulkscrubsdirect.test'],
-            [
-                'name' => 'BulkScrubsDirect Admin',
-                'password' => 'password',
-                'role' => 'admin',
-                'status' => 'active',
-                'email_verified_at' => now(),
-            ]
-        );
+        // The admin account used to live here. It moved to AdminUserSeeder:
+        // this seeder is placeholder data that must not reach production, and
+        // the one account that can open /admin has to be seedable without it.
     }
 
     /**
