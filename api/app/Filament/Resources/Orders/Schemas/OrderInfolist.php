@@ -3,10 +3,13 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Models\Order;
+use App\Models\OrderAddress;
+use App\Models\OrderItem;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 /**
  * The order as an administrator needs to read it: what was bought, what was
@@ -48,9 +51,18 @@ class OrderInfolist
                 ->schema([
                     RepeatableEntry::make('items')
                         ->hiddenLabel()
-                        ->columns(4)
+                        ->columns(5)
                         ->schema([
                             TextEntry::make('product_name')->label('Product'),
+                            // The name is the snapshot taken at purchase; the
+                            // dot beside it is read live off the variant, so it
+                            // goes when the variant does and the name stays.
+                            TextEntry::make('color_name')
+                                ->label('Colour')
+                                ->placeholder('—')
+                                ->formatStateUsing(fn (?string $state, OrderItem $record) => new HtmlString(
+                                    self::swatch($record).e((string) $state)
+                                )),
                             TextEntry::make('variant_sku')->label('SKU'),
                             TextEntry::make('qty')->label('Qty'),
                             TextEntry::make('line_total_cents')
@@ -97,7 +109,7 @@ class OrderInfolist
                             TextEntry::make('type')->label('Type'),
                             TextEntry::make('line1')
                                 ->label('Address')
-                                ->formatStateUsing(fn ($state, $record) => implode(', ', $record->lines())),
+                                ->formatStateUsing(fn (OrderAddress $record) => self::addressLine($record)),
                         ]),
                 ]),
 
@@ -150,6 +162,48 @@ class OrderInfolist
                         ]),
                 ]),
         ]);
+    }
+
+    /**
+     * One address, as a line — or, for a billing address identical to the
+     * shipping one, the fact that it is.
+     *
+     * Almost every order bills where it ships, and printing the same address
+     * twice makes the one order that does not look exactly like all the others.
+     */
+    protected static function addressLine(OrderAddress $address): string
+    {
+        if ($address->type === OrderAddress::TYPE_BILLING) {
+            $shipping = $address->order?->shippingAddress;
+
+            if ($shipping && $shipping->lines() === $address->lines()) {
+                return 'Same as shipping address';
+            }
+        }
+
+        return implode(', ', $address->lines());
+    }
+
+    /**
+     * A dot in the variant's colour, or nothing.
+     *
+     * The hex is free text typed into the colours table by an operator, and
+     * this is the one place it is written into markup — into a style attribute,
+     * unescaped, because that is what a colour is for. So it is only ever
+     * written when it is a hex colour and nothing else; anything that fails the
+     * pattern produces no dot rather than a best guess.
+     */
+    protected static function swatch(OrderItem $item): string
+    {
+        $hex = $item->variant?->color?->hex;
+
+        if (! is_string($hex) || ! preg_match('/\A#(?:[0-9a-fA-F]{3}){1,2}\z/', $hex)) {
+            return '';
+        }
+
+        return '<span class="bsd-swatch" style="display:inline-block;width:.7rem;height:.7rem;'
+            .'margin-right:.4rem;border-radius:9999px;border:1px solid rgba(0,0,0,.2);'
+            .'vertical-align:-.05rem;background:'.$hex.'"></span>';
     }
 
     /**
