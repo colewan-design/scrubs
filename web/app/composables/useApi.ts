@@ -370,6 +370,24 @@ export type AuthProvider = 'google'
 
 let csrfReady = false
 
+/**
+ * The guest cart's cookie, described once so the two places that read it — this
+ * file and the cart store — cannot drift apart.
+ *
+ * `secure` everywhere except the dev server. The token is the whole of a
+ * guest's claim to their basket, and without the flag a browser would hand it
+ * over on any plain-http request to the domain. Nuxt's dev server speaks http,
+ * and a Secure cookie set over http is silently dropped by some browsers, so
+ * development is the one place it stays off.
+ */
+export const CART_COOKIE = 'bsd_cart'
+
+export const cartCookieOptions = {
+  maxAge: 60 * 60 * 24 * 30,
+  sameSite: 'lax' as const,
+  secure: !import.meta.dev,
+}
+
 export function useApi() {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
@@ -393,10 +411,7 @@ export function useApi() {
     }
 
     // The guest cart is keyed by a token we hold in a cookie.
-    const cartToken = useCookie<string | null>('bsd_cart', {
-      maxAge: 60 * 60 * 24 * 30,
-      sameSite: 'lax',
-    })
+    const cartToken = useCookie<string | null>(CART_COOKIE, cartCookieOptions)
     if (cartToken.value) headers['X-Cart-Token'] = cartToken.value
 
     const serverCookies = import.meta.server ? useRequestHeaders(['cookie']) : null

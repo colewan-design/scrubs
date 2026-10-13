@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { CART_COOKIE, cartCookieOptions } from '~/composables/useApi'
 import type { CartItem, CartQuote, CartResponse } from '~/composables/useApi'
 
 /**
@@ -11,10 +12,7 @@ import type { CartItem, CartQuote, CartResponse } from '~/composables/useApi'
 export const useCartStore = defineStore('cart', () => {
   // Created during store setup. Calling useCookie() inside apply() would run it
   // after an await, where the Nuxt instance is no longer on the async context.
-  const cartToken = useCookie<string | null>('bsd_cart', {
-    maxAge: 60 * 60 * 24 * 30,
-    sameSite: 'lax',
-  })
+  const cartToken = useCookie<string | null>(CART_COOKIE, cartCookieOptions)
 
   const items = ref<CartItem[]>([])
   const quote = ref<CartQuote | null>(null)
