@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\Payments\PaymentAlreadyReceived;
 use App\Services\Payments\PaymentException;
 use App\Services\Payments\PaymentService;
 use Illuminate\Http\JsonResponse;
@@ -50,6 +51,16 @@ class PaymentController extends Controller
 
         try {
             $session = $this->payments->prepare($order);
+        } catch (PaymentAlreadyReceived $e) {
+            // 409 and flagged, not a 422 like the failures below: nothing went
+            // wrong, the payment has simply been made already. The receipt
+            // page waits for the webhook on this answer instead of offering a
+            // card form a second time.
+            return response()->json([
+                'message' => $e->getMessage(),
+                'status' => $order->status,
+                'payment_received' => true,
+            ], 409);
         } catch (PaymentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

@@ -87,8 +87,19 @@ class StripeWebhookController extends Controller
             return;
         }
 
-        $this->recordCardDetails($payment, $intent);
+        try {
+            $this->settle($payment, $intent);
+        } finally {
+            // Last, whatever happened above, and never in its way: this asks
+            // Stripe a question, and the answer to "which card?" must not be
+            // able to delay or undo the answer to "is this order paid?".
+            $this->recordCardDetails($payment, $intent);
+        }
+    }
 
+    /** Decide what a reported payment means for the order it was made against. */
+    protected function settle(Payment $payment, object $intent): void
+    {
         $order = $payment->order;
 
         // An intent that succeeded for less than the order total is not payment
@@ -113,6 +124,13 @@ class StripeWebhookController extends Controller
         try {
             $this->orders->markPaid($order, $payment);
         } catch (RuntimeException $e) {
+            // Already dealt with. A redelivered event must not raise the alarm
+            // a second time — or mark as held a payment that has since been
+            // sent back.
+            if (in_array($payment->status, [Payment::STATUS_SUCCEEDED, Payment::STATUS_REFUNDED], true)) {
+                return;
+            }
+
             // The order was cancelled while the customer was paying — the
             // reservation sweeper released it, or an administrator did. The
             // money is real and now has to go back, so this is escalated rather
@@ -129,7 +147,8 @@ class StripeWebhookController extends Controller
                 'paid_at' => now(),
             ])->save();
 
-            $this->flag($order, 'Payment received AFTER cancellation ('.$intent->id.'). Refund required.');
+            $this->flag($order, 'Payment received AFTER cancellation ('.$intent->id.'). Refund required — '
+                .'use Refund on this order.');
         }
     }
 
@@ -161,9 +180,13 @@ class StripeWebhookController extends Controller
     /**
      * A refund issued from the Stripe dashboard rather than from admin.
      *
-     * Refunds started on our side already wrote their ledger row before Stripe
-     * was called, so this deduplicates on the Stripe refund id and records only
-     * what it has never seen.
+     * The event says only that the charge has been refunded — Stripe stopped
+     * sending the refunds themselves with it in API version 2022-11-15 — so the
+     * gateway is asked which refunds exist that this application did not issue,
+     * and any the ledger has never seen are written down. Refunds started in
+     * admin never come back from that question: the request that issued them
+     * records them, and recording them here as well would count the money
+     * twice.
      */
     protected function handleRefunded(Event $event): void
     {
@@ -176,8 +199,32 @@ class StripeWebhookController extends Controller
 
         $order = $payment->order;
 
-        foreach ($charge->refunds->data ?? [] as $refund) {
-            $known = $order->refunds()->where('provider_reference', $refund->id)->exists();
+        try {
+            $refunds = $this->stripe->refundsMadeElsewhere($payment);
+        } catch (PaymentException $e) {
+            // Still a 200: Stripe would only send the same event again, and an
+            // endpoint that keeps failing gets switched off — taking payment
+            // confirmations with it. But money has moved that the ledger does
+            // not show, so a person is told where to look.
+            Log::error('Stripe webhook: could not read the refunds on a charge.', [
+                'order' => $order->order_number,
+                'charge' => $charge->id ?? null,
+                'reason' => $e->getMessage(),
+            ]);
+
+            $this->flag($order, 'Stripe reported a refund on this payment, but its details could not be '
+                .'read. Check the payment in the Stripe dashboard and record the refund here by hand.');
+
+            return;
+        }
+
+        foreach ($refunds as $refund) {
+            // A refund Stripe has refused or cancelled returned nothing.
+            if (! $refund->succeeded()) {
+                continue;
+            }
+
+            $known = $order->refunds()->where('provider_reference', $refund->reference)->exists();
 
             if ($known) {
                 continue;
@@ -186,19 +233,19 @@ class StripeWebhookController extends Controller
             try {
                 $this->orders->refund(
                     order: $order,
-                    amountCents: (int) $refund->amount,
+                    amountCents: $refund->amountCents,
                     reason: 'Refunded from the Stripe dashboard.',
                     // Stock is NOT returned automatically. Stripe cannot know
                     // whether the goods came back, and inventing stock is worse
                     // than making an administrator say so.
                     restock: false,
-                    providerReference: (string) $refund->id,
+                    providerReference: $refund->reference,
                     throughGateway: false,
                 );
             } catch (RuntimeException $e) {
                 Log::error('Stripe webhook: could not record dashboard refund.', [
                     'order' => $order->order_number,
-                    'refund' => $refund->id,
+                    'refund' => $refund->reference,
                     'reason' => $e->getMessage(),
                 ]);
             }
@@ -226,14 +273,35 @@ class StripeWebhookController extends Controller
      */
     protected function recordCardDetails(Payment $payment, object $intent): void
     {
-        $card = $intent->latest_charge ?? null;
-        $details = is_object($card) ? ($card->payment_method_details->card ?? null) : null;
+        try {
+            $charge = $intent->latest_charge ?? null;
 
-        $payment->forceFill(array_filter([
-            'card_brand' => $details->brand ?? null,
-            'card_last_four' => $details->last4 ?? null,
-            'method' => $intent->payment_method_types[0] ?? 'card',
-        ]))->save();
+            // The event carries the charge's id, not the charge, so the card
+            // has to be asked for. (API versions before 2022-11-15 sent it
+            // whole, and that is still read if it ever turns up.) Asked once:
+            // a redelivered event finds the answer already written down.
+            $card = match (true) {
+                is_object($charge) => [
+                    'brand' => $charge->payment_method_details->card->brand ?? null,
+                    'last4' => $charge->payment_method_details->card->last4 ?? null,
+                ],
+                (bool) $payment->card_last_four => null,
+                default => $this->stripe->cardDetails($intent->id),
+            };
+
+            $payment->forceFill(array_filter([
+                'card_brand' => $card['brand'] ?? null,
+                'card_last_four' => $card['last4'] ?? null,
+                'method' => $intent->payment_method_types[0] ?? 'card',
+            ]))->save();
+        } catch (\Throwable $e) {
+            // Called on the way out of a payment that has already been dealt
+            // with. Nothing that goes wrong here is worth a failed webhook.
+            Log::warning('Stripe webhook: could not record card details.', [
+                'intent' => $intent->id ?? null,
+                'reason' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

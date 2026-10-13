@@ -170,6 +170,28 @@ class InventoryAndRefundsTest extends TestCase
         $this->assertSame(7500, $order->outstandingRefundableCents());
     }
 
+    /**
+     * Money going back is not money still owed. A partly refunded order used
+     * to read "Pending Payment" to the customer and to admin alike, because
+     * anything that was not exactly `paid` counted as unpaid.
+     */
+    public function test_a_partial_refund_does_not_send_the_order_back_to_pending_payment(): void
+    {
+        $order = $this->paidOrder();
+        $this->assertSame(Order::STATUS_PROCESSING, $order->status);
+
+        app(OrderService::class)->refund($order, 2500, 'One item returned', restock: false);
+
+        $order->refresh();
+        $this->assertSame(Order::STATUS_PROCESSING, $order->status);
+
+        // And it goes on moving through fulfilment under its own name.
+        app(OrderService::class)->transitionFulfillment($order, Order::FULFILLMENT_SHIPPED);
+
+        $this->assertSame(Order::STATUS_SHIPPED, $order->fresh()->status);
+        $this->assertSame(Order::PAYMENT_PARTIALLY_REFUNDED, $order->fresh()->payment_status);
+    }
+
     public function test_refunding_the_full_total_marks_the_order_refunded(): void
     {
         $order = $this->paidOrder();
@@ -243,5 +265,89 @@ class InventoryAndRefundsTest extends TestCase
         $this->assertSame('re_123', $refund->provider_reference);
         $this->assertSame($admin->id, $refund->created_by);
         $this->assertNotNull($refund->payment_id);
+    }
+
+    // ---- cancelling after a refund ---------------------------------------
+
+    /**
+     * An order some of whose money had gone back was cancelled as though it had
+     * never been paid: the goods it sold stayed off the shelf, and the "hold"
+     * it gave up instead was one belonging to somebody else's checkout.
+     */
+    public function test_cancelling_a_partly_refunded_order_returns_what_it_sold(): void
+    {
+        $order = $this->paidOrder();
+        $variant = ProductVariant::find($order->items->first()->product_variant_id);
+
+        // Another customer is part-way through checkout for the same item.
+        $variant->increment('reserved_qty', 3);
+
+        app(OrderService::class)->refund($order, 2500, 'Goodwill', restock: false);
+        app(OrderService::class)->cancel($order->fresh());
+
+        $variant->refresh();
+        $this->assertSame(20, $variant->stock_qty, 'The two units this order sold should be back.');
+        $this->assertSame(3, $variant->reserved_qty, 'The other checkout keeps its hold.');
+    }
+
+    /** The same for an order refunded in full and then cancelled. */
+    public function test_cancelling_a_fully_refunded_order_returns_what_it_sold(): void
+    {
+        $order = $this->paidOrder();
+        $variant = ProductVariant::find($order->items->first()->product_variant_id);
+        $variant->increment('reserved_qty', 3);
+
+        app(OrderService::class)->refund($order, 10000, 'Damaged in the warehouse', restock: false);
+        app(OrderService::class)->cancel($order->fresh());
+
+        $variant->refresh();
+        $this->assertSame(20, $variant->stock_qty);
+        $this->assertSame(3, $variant->reserved_qty);
+        $this->assertSame(Order::STATUS_REFUNDED, $order->fresh()->status);
+    }
+
+    /** A refund that already put the goods back must not have them put back again. */
+    public function test_cancelling_after_a_refund_that_restocked_does_not_restock_twice(): void
+    {
+        $order = $this->paidOrder();
+        $variant = ProductVariant::find($order->items->first()->product_variant_id);
+
+        app(OrderService::class)->refund($order, 2500, 'One item returned', restock: true);
+        $this->assertSame(20, $variant->fresh()->stock_qty);
+
+        app(OrderService::class)->cancel($order->fresh());
+
+        $this->assertSame(20, $variant->fresh()->stock_qty);
+    }
+
+    /**
+     * The ordinary way to unwind a sale: cancel it, then give the money back.
+     * Cancelling returns the goods, and the refund form's "Return items to
+     * stock" is ticked by default — which returned them a second time.
+     */
+    public function test_refunding_a_cancelled_order_does_not_restock_what_cancelling_returned(): void
+    {
+        $order = $this->paidOrder();
+        $variant = ProductVariant::find($order->items->first()->product_variant_id);
+
+        app(OrderService::class)->cancel($order);
+        $this->assertSame(20, $variant->fresh()->stock_qty);
+
+        $refund = app(OrderService::class)->refund($order->fresh(), 10000, 'Cancelled', restock: true);
+
+        $this->assertSame(20, $variant->fresh()->stock_qty);
+        $this->assertFalse((bool) $refund->restock, 'The ledger should not claim a restock that did not happen.');
+    }
+
+    /** Two refunds on one order, both asked to restock: the goods come back once. */
+    public function test_a_second_refund_does_not_restock_again(): void
+    {
+        $order = $this->paidOrder();
+        $variant = ProductVariant::find($order->items->first()->product_variant_id);
+
+        app(OrderService::class)->refund($order, 2500, 'First', restock: true);
+        app(OrderService::class)->refund($order->fresh(), 7500, 'Second', restock: true);
+
+        $this->assertSame(20, $variant->fresh()->stock_qty);
     }
 }

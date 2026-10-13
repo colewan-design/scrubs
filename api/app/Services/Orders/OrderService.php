@@ -187,7 +187,12 @@ class OrderService
      */
     public function markPaid(Order $order, ?Payment $payment = null, ?User $actor = null): Order
     {
-        if ($order->payment_status === Order::PAYMENT_PAID) {
+        // Once is all it can happen. "Already paid" has to include an order
+        // that has since been refunded: a provider can deliver the same
+        // payment event again days later, and one that arrives after a refund
+        // would otherwise find the order "not paid", take its stock a second
+        // time and put a refunded order back into the fulfilment queue.
+        if ($order->hasBeenPaid()) {
             return $order;
         }
 
@@ -239,12 +244,19 @@ class OrderService
             throw new RuntimeException('A shipped or completed order cannot be cancelled.');
         }
 
-        $wasUnpaid = $order->payment_status !== Order::PAYMENT_PAID;
+        // What an order is holding depends on whether it was ever paid for, not
+        // on whether it reads "paid" this minute. Payment turns the hold into a
+        // sale, and a refund afterwards does not turn it back: a refunded order
+        // has no reservation to give up, and treating it as unpaid released
+        // somebody else's instead while leaving its own goods off the shelf.
+        $wasPaid = $order->hasBeenPaid();
 
-        $order = DB::transaction(function () use ($order, $reason, $actor) {
-            $order->payment_status === Order::PAYMENT_PAID
-                ? $this->restock($order, InventoryMovement::REASON_CANCELLATION)
-                : $this->releaseReservation($order);
+        $order = DB::transaction(function () use ($order, $reason, $actor, $wasPaid) {
+            if (! $wasPaid) {
+                $this->releaseReservation($order);
+            } elseif ($this->holdsSoldStock($order)) {
+                $this->restock($order, InventoryMovement::REASON_CANCELLATION);
+            }
 
             $from = $order->status;
 
@@ -264,7 +276,7 @@ class OrderService
         // provider timing out must not roll back a cancellation that has
         // already returned the stock. The stranded-intent risk it leaves is
         // covered on the other side — markPaid refuses a cancelled order.
-        if ($wasUnpaid) {
+        if (! $wasPaid) {
             $this->payments->abandon($order->load('payments'));
         }
 
@@ -293,6 +305,17 @@ class OrderService
      *
      * A partial refund leaves the order payable-complete but marks it
      * partially_refunded; refunding the full total moves it to Refunded.
+     *
+     * ONE ORDER THAT IS NOT PAID CAN STILL BE REFUNDED: one a payment landed on
+     * after it was cancelled (Order::hasStrayPayment). That money has to be
+     * able to go back through the same door as any other. The order itself
+     * stays what it is — cancelled, and never paid — and only the payment row
+     * and the ledger record that money came and went.
+     *
+     * `$restock` IS A REQUEST, NOT AN INSTRUCTION. Goods come back once: not
+     * again if cancelling the order already returned them, not again on a
+     * second refund, and never for a payment that sold nothing. The refund row
+     * records what actually happened.
      */
     public function refund(
         Order $order,
@@ -303,10 +326,15 @@ class OrderService
         ?User $actor = null,
         bool $throughGateway = false,
     ): Refund {
-        if ($order->payment_status !== Order::PAYMENT_PAID
+        $stray = $order->hasStrayPayment();
+
+        if (! $stray
+            && $order->payment_status !== Order::PAYMENT_PAID
             && $order->payment_status !== Order::PAYMENT_PARTIALLY_REFUNDED) {
             throw new RuntimeException('Only a paid order can be refunded.');
         }
+
+        $restock = $restock && $this->holdsSoldStock($order);
 
         if ($amountCents <= 0) {
             throw new RuntimeException('A refund must be for more than zero.');
@@ -330,7 +358,7 @@ class OrderService
                 ->reference;
         }
 
-        return DB::transaction(function () use ($order, $payment, $amountCents, $reason, $restock, $providerReference, $actor, $throughGateway) {
+        return DB::transaction(function () use ($order, $payment, $amountCents, $reason, $restock, $providerReference, $actor, $throughGateway, $stray) {
             $refund = $order->refunds()->create([
                 'payment_id' => $payment->id,
                 'amount_cents' => $amountCents,
@@ -349,9 +377,12 @@ class OrderService
 
             $from = $order->status;
 
-            $order->payment_status = $isFull
-                ? Order::PAYMENT_REFUNDED
-                : Order::PAYMENT_PARTIALLY_REFUNDED;
+            // An order that was never paid does not become a refunded one.
+            if (! $stray) {
+                $order->payment_status = $isFull
+                    ? Order::PAYMENT_REFUNDED
+                    : Order::PAYMENT_PARTIALLY_REFUNDED;
+            }
 
             if ($isFull) {
                 $payment->update(['status' => Payment::STATUS_REFUNDED]);
@@ -452,7 +483,10 @@ class OrderService
             return Order::STATUS_CANCELLED;
         }
 
-        if ($order->payment_status !== Order::PAYMENT_PAID) {
+        // A partial refund is money going back on an order that was paid for,
+        // not an order waiting to be paid: it keeps whichever fulfilment status
+        // it had. Only an order nothing has ever been received for is pending.
+        if (! $order->hasBeenPaid()) {
             return Order::STATUS_PENDING_PAYMENT;
         }
 
@@ -463,6 +497,23 @@ class OrderService
             Order::FULFILLMENT_PROCESSING => Order::STATUS_PROCESSING,
             default => Order::STATUS_PAID,
         };
+    }
+
+    /**
+     * Whether this order still has goods off the shelf that cancelling or
+     * refunding it could put back.
+     *
+     * Stock leaves when an order is marked paid and can come back exactly once.
+     * Restocking is the whole order or none of it, so it has already happened
+     * if the order was cancelled after payment, or if any earlier refund
+     * restocked — and it never applies to an order that was not paid at all,
+     * which only ever held a reservation.
+     */
+    public function holdsSoldStock(Order $order): bool
+    {
+        return $order->hasBeenPaid()
+            && $order->fulfillment_status !== Order::FULFILLMENT_CANCELLED
+            && ! $order->refunds()->where('restock', true)->exists();
     }
 
     // ---------------------------------------------------------------- internals

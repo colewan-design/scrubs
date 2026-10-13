@@ -12,10 +12,13 @@ use App\Services\Payments\StripeGateway;
 /**
  * StripeGateway with the network removed and nothing else.
  *
- * Only the three methods that call Stripe are replaced. `configured()`,
- * `testMode()`, `webhookReady()` and — most importantly — `verifyWebhook()` are
- * inherited and run for real, so the signature check every webhook test depends
- * on is the actual production code path rather than a stub that always agrees.
+ * Only the methods that call Stripe are replaced. `configured()`, `testMode()`,
+ * `webhookReady()` and — most importantly — `verifyWebhook()` are inherited and
+ * run for real, so the signature check every webhook test depends on is the
+ * actual production code path rather than a stub that always agrees.
+ *
+ * For the gateway's own decisions — what it sends Stripe, and what it makes of
+ * the answer — see FakeStripeTransport, which fakes one layer further down.
  */
 class FakeStripeGateway extends StripeGateway
 {
@@ -26,6 +29,16 @@ class FakeStripeGateway extends StripeGateway
     public bool $failPrepare = false;
 
     public ?string $failRefundWith = null;
+
+    /** @var list<GatewayRefund> What Stripe would report as refunded from its dashboard. */
+    public array $refundedElsewhere = [];
+
+    public bool $failRefundLookup = false;
+
+    /** The card Stripe would name for a payment. Null: not a card, or Stripe unreachable. */
+    public ?array $card = ['brand' => 'visa', 'last4' => '4242'];
+
+    public int $cardLookups = 0;
 
     public function prepare(Order $order, Payment $payment): PaymentSession
     {
@@ -67,5 +80,21 @@ class FakeStripeGateway extends StripeGateway
     public function abandon(Payment $payment): void
     {
         $this->abandoned[] = $payment->id;
+    }
+
+    public function refundsMadeElsewhere(Payment $payment): array
+    {
+        if ($this->failRefundLookup) {
+            throw new PaymentException('Stripe could not be asked about the refunds on this payment.');
+        }
+
+        return $this->refundedElsewhere;
+    }
+
+    public function cardDetails(string $intentId): ?array
+    {
+        $this->cardLookups++;
+
+        return $this->card;
     }
 }

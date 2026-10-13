@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, Check, Loader, Package, Store } from 'lucide-vue-next'
+import { AlertCircle, Check, Clock, Loader, Package, Store } from 'lucide-vue-next'
 
 /**
  * Order confirmation and, later, the order's own page (§7, §8).
@@ -30,45 +30,66 @@ const order = computed(() => data.value!.order)
 const isPickup = computed(() => order.value.fulfillment_type === 'pickup')
 const isPaid = computed(() => order.value.payment_status !== 'pending')
 
+/**
+ * Still waiting on money, and still an order — the API's own definition of the
+ * only state in which paying means anything. A cancelled order is unpaid too,
+ * and must not be offered a card form for stock it no longer holds.
+ */
+const awaitingPayment = computed(
+  () => order.value.payment_status === 'pending' && order.value.fulfillment_status !== 'cancelled',
+)
+
 /** Card orders are the only ones this page can do anything about. */
 const paidByCard = computed(() => order.value.payment_method === 'stripe')
 
 /**
  * WHY THIS PAGE WAITS INSTEAD OF DECLARING VICTORY.
  *
- * Stripe's redirect comes back with `redirect_status=succeeded` the instant the
- * customer authorises, but the order is not paid until the webhook lands a
- * moment later — and the webhook, not the browser, is what marks it. So a card
+ * A card is authorised a moment before its order is paid: the webhook, not the
+ * browser, is what marks it, and it lands a second or two later. So a card
  * order that is still Pending Payment right after a successful authorisation is
  * normal, not broken. The page polls briefly and says "confirming" rather than
  * either lying about the status or alarming someone whose payment is fine.
  *
- * If the wait elapses the order is left as it is: unpaid, holding its stock,
- * with a retry available. Nothing here ever changes a payment status.
+ * It learns a card was authorised in one of three ways: checkout sends the
+ * customer here saying so (`payment=authorised`), Stripe does when it had to
+ * take them away for 3-D Secure (`redirect_status=succeeded`), or a retry has
+ * just gone through on this page.
+ *
+ * WHAT IT NEVER DOES AFTER THAT IS OFFER THE CARD FORM AGAIN. If the wait runs
+ * out, the money has still been taken; only the confirmation is late. The page
+ * says so and offers to look again. "Nothing has been charged — finish paying
+ * below" is the one thing that must not be said to someone who has paid.
+ * Nothing here ever changes a payment status.
  */
-const returnedFromStripe = computed(() => route.query.redirect_status === 'succeeded')
+const authorised = ref(
+  route.query.payment === 'authorised' || route.query.redirect_status === 'succeeded',
+)
 const cardFailed = computed(
   () => route.query.payment === 'failed' || route.query.redirect_status === 'failed',
 )
 const providerUnavailable = computed(() => route.query.payment === 'unavailable')
 
-const confirming = ref(false)
+/** Set from the first render, so an order that has been paid for never flashes "unpaid". */
+const confirming = ref(authorised.value && awaitingPayment.value)
 
-onMounted(async () => {
-  if (!returnedFromStripe.value || isPaid.value) return
-
+/**
+ * Ten tries, two seconds apart. Long enough for an ordinary webhook round
+ * trip, short enough that nobody sits watching a spinner over a broken one.
+ */
+async function awaitConfirmation() {
   confirming.value = true
 
-  // Ten tries, two seconds apart. Long enough for an ordinary webhook round
-  // trip, short enough that nobody sits watching a spinner over a broken one.
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 10 && !isPaid.value; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 2000))
     await refresh()
-
-    if (isPaid.value) break
   }
 
   confirming.value = false
+}
+
+onMounted(() => {
+  if (confirming.value) awaitConfirmation()
 })
 
 // --- retry -----------------------------------------------------------------
@@ -91,7 +112,10 @@ const retryError = ref('')
 const retryBusy = ref(false)
 const retryReady = ref(false)
 
-const canRetry = computed(() => paidByCard.value && !isPaid.value && !confirming.value)
+/** Unpaid, still an order, and no card has been authorised for it. */
+const canRetry = computed(
+  () => paidByCard.value && awaitingPayment.value && !authorised.value && !confirming.value,
+)
 
 async function startRetry() {
   retryError.value = ''
@@ -107,6 +131,16 @@ async function startRetry() {
 
     retrySession.value = payment
   } catch (e: any) {
+    // The provider already has the money and only the confirmation is
+    // outstanding. The API will not reopen that payment, and this page stops
+    // offering to: it waits for the confirmation like any other paid order.
+    if (e?.data?.payment_received) {
+      authorised.value = true
+      awaitConfirmation()
+
+      return
+    }
+
     retryError.value = e?.data?.message || 'We could not reopen this payment. Please contact us.'
   } finally {
     retryBusy.value = false
@@ -139,18 +173,11 @@ async function submitRetry() {
     }
 
     // Authorised. The webhook still has to land, so fall into the same
-    // confirming-and-polling wait the redirect path uses.
+    // confirming-and-polling wait an order arriving from checkout gets.
     retrySession.value = null
-    confirming.value = true
+    authorised.value = true
 
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      await refresh()
-
-      if (isPaid.value) break
-    }
-
-    confirming.value = false
+    await awaitConfirmation()
   } finally {
     retryBusy.value = false
   }
@@ -190,6 +217,27 @@ useSeoMeta({ title: `Order ${route.params.number}`, robots: 'noindex' })
             payment provider — this usually takes a few seconds. You can safely leave this page;
             your receipt will arrive by email.
           </p>
+        </div>
+      </div>
+
+      <!-- The wait ran out. The card was authorised, so the money has been
+           taken whatever this page has heard since — which is why what follows
+           is a way to look again, and not the card form. -->
+      <div
+        v-else-if="authorised && awaitingPayment"
+        class="mt-6 flex items-start gap-3 rounded-sm border border-edge bg-surface-sunken px-5 py-4"
+      >
+        <Clock :size="18" class="mt-0.5 shrink-0 text-ink-500" aria-hidden="true" />
+        <div class="text-[14px]">
+          <p class="font-medium text-ink-900">Your payment is still being confirmed</p>
+          <p class="mt-0.5 text-[13px] leading-relaxed text-ink-500">
+            Your card has been authorised, and the final confirmation from our payment provider is
+            taking longer than usual. You do not need to pay again — your receipt will arrive by
+            email as soon as it is confirmed.
+          </p>
+          <UiBaseButton variant="secondary" class="mt-3" @click="awaitConfirmation">
+            Check again
+          </UiBaseButton>
         </div>
       </div>
 

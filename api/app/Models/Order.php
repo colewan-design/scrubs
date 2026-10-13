@@ -191,6 +191,47 @@ class Order extends Model
             && $this->fulfillment_status !== self::FULFILLMENT_CANCELLED;
     }
 
+    /**
+     * The money for this order has arrived at some point — and may since have
+     * gone back, in part or in full.
+     *
+     * Not the same question as `payment_status === paid`, and the difference is
+     * the point: a refunded order is no longer "paid", but its payment was
+     * taken and its stock was committed, so nothing may treat it as an order
+     * that is still waiting for either.
+     */
+    public function hasBeenPaid(): bool
+    {
+        return in_array($this->payment_status, [
+            self::PAYMENT_PAID,
+            self::PAYMENT_PARTIALLY_REFUNDED,
+            self::PAYMENT_REFUNDED,
+        ], true);
+    }
+
+    /**
+     * A payment arrived for this order after it could no longer accept one —
+     * the customer finished paying in the moment it was cancelled.
+     *
+     * The order was never marked paid, so nothing left the shelf for it; but
+     * the money is real and has to be able to go back. This is what lets a
+     * refund through for an order that is not, and never was, "paid".
+     */
+    public function hasStrayPayment(): bool
+    {
+        // Cancelled, specifically. An order that is merely unpaid and somehow
+        // holds a succeeded payment is one to mark paid, not one to refund.
+        if ($this->hasBeenPaid() || $this->fulfillment_status !== self::FULFILLMENT_CANCELLED) {
+            return false;
+        }
+
+        // Off the loaded relation where there is one: the admin table asks
+        // this of every row it draws.
+        return $this->relationLoaded('payments')
+            ? $this->payments->contains('status', Payment::STATUS_SUCCEEDED)
+            : $this->payments()->where('status', Payment::STATUS_SUCCEEDED)->exists();
+    }
+
     public function totalRefundedCents(): int
     {
         return (int) $this->refunds()->sum('amount_cents');

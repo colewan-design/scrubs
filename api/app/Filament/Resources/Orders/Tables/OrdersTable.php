@@ -234,14 +234,18 @@ class OrdersTable
                 ->label(fn (Order $record) => self::refundsAutomatically($record) ? 'Refund' : 'Record refund')
                 ->icon('heroicon-o-receipt-refund')
                 ->color('warning')
-                ->visible(fn (Order $record) => in_array($record->payment_status, [
+                // Paid orders — and the one unpaid kind that still holds money:
+                // a cancelled order a payment landed on afterwards. Without
+                // that, the only way to return it was the Stripe dashboard.
+                ->visible(fn (Order $record) => (in_array($record->payment_status, [
                     Order::PAYMENT_PAID,
                     Order::PAYMENT_PARTIALLY_REFUNDED,
-                ], true) && $record->outstandingRefundableCents() > 0)
+                ], true) || $record->hasStrayPayment()) && $record->outstandingRefundableCents() > 0)
                 ->modalHeading(fn (Order $record) => self::refundsAutomatically($record)
                     ? "Refund — {$record->order_number}"
                     : "Record refund — {$record->order_number}")
                 ->modalDescription(fn (Order $record) => match (true) {
+                    $record->hasStrayPayment() && self::refundsThroughGateway($record) => 'This payment arrived after the order was cancelled. This sends it back through Stripe now. It cannot be undone.',
                     self::refundsViaPayPal($record) => 'This sends the refund through PayPal now and returns the money to the customer. It cannot be undone.',
                     self::refundsThroughGateway($record) => 'This sends the money back through Stripe now. It cannot be undone.',
                     default => 'Refund the customer through your payment provider first, then record it here.',
@@ -272,9 +276,14 @@ class OrdersTable
                         ->visible(fn (Order $record) => ! self::refundsAutomatically($record))
                         ->helperText('The refund ID from your bank or provider, so the two records can be reconciled.'),
 
+                    // Offered only while there is something to return. Goods
+                    // come back once, so a cancelled order, or one an earlier
+                    // refund already restocked, has none left to put back — and
+                    // OrderService would ignore the tick anyway.
                     Toggle::make('restock')
                         ->label('Return items to stock')
                         ->default(true)
+                        ->visible(fn (Order $record) => app(OrderService::class)->holdsSoldStock($record))
                         ->helperText('Turn this off if the goods are not coming back — damaged or a goodwill refund.'),
                 ])
                 ->action(function (Order $record, array $data) {

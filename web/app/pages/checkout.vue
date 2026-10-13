@@ -572,7 +572,10 @@ async function place() {
     }
 
     await cart.refresh()
-    await navigateTo(receiptUrl(placed))
+    // A card that got this far has been authorised. The receipt is told, so it
+    // waits for the webhook instead of describing an order nobody has paid for
+    // to the person who just paid for it.
+    await navigateTo(receiptUrl(placed, payingByCard.value ? '&payment=authorised' : ''))
   } catch (e: any) {
     // Only reachable before the order exists — everything after step 2 routes
     // to the receipt above. If an order did somehow get placed, send them to it

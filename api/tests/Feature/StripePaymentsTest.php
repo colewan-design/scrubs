@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Orders\Pages\ViewOrder;
 use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\Payment;
@@ -12,10 +13,15 @@ use App\Models\ShippingZone;
 use App\Models\TaxRate;
 use App\Models\User;
 use App\Services\Orders\OrderService;
+use App\Services\Payments\GatewayRefund;
 use App\Services\Payments\StripeGateway;
 use App\Support\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
+use Livewire\Livewire;
+use Stripe\ApiRequestor;
 use Tests\Support\FakeStripeGateway;
+use Tests\Support\FakeStripeTransport;
 use Tests\TestCase;
 
 /**
@@ -71,7 +77,31 @@ class StripePaymentsTest extends TestCase
         ]);
     }
 
+    protected function tearDown(): void
+    {
+        // The SDK keeps its transport in a static; hand it back the real one.
+        ApiRequestor::setHttpClient(null);
+
+        parent::tearDown();
+    }
+
     // ------------------------------------------------------------- helpers
+
+    /**
+     * Swap the fake gateway for the real one, talking to a pretend Stripe.
+     *
+     * For the few tests that are about the gateway's own decisions. Everything
+     * else here is about what happens around it and keeps the fake.
+     */
+    protected function realGateway(): FakeStripeTransport
+    {
+        $transport = new FakeStripeTransport;
+
+        ApiRequestor::setHttpClient($transport);
+        $this->app->instance(StripeGateway::class, new StripeGateway);
+
+        return $transport;
+    }
 
     protected ?string $cartToken = null;
 
@@ -155,10 +185,26 @@ class StripePaymentsTest extends TestCase
             'amount' => $order->grand_total_cents,
             'amount_received' => $amount ?? $order->grand_total_cents,
             'payment_method_types' => ['card'],
-            'latest_charge' => [
-                'id' => 'ch_test',
-                'payment_method_details' => ['card' => ['brand' => 'visa', 'last4' => '4242']],
-            ],
+            // An id, which is all Stripe has sent here since API version
+            // 2022-11-15. This fixture used to carry the whole charge, and the
+            // card details never being saved in production hid behind it.
+            'latest_charge' => 'ch_test',
+        ];
+    }
+
+    /**
+     * `charge.refunded` as Stripe sends it: the charge, and no list of its
+     * refunds. The old fixture included that list, which is how the handler
+     * went on reading something that has not been sent for years.
+     */
+    protected function refundedCharge(Order $order): array
+    {
+        return [
+            'id' => 'ch_test',
+            'object' => 'charge',
+            'payment_intent' => $order->payments()->first()->provider_reference,
+            'refunded' => false,
+            'amount_refunded' => 1000,
         ];
     }
 
@@ -254,6 +300,79 @@ class StripePaymentsTest extends TestCase
         $this->assertDatabaseCount('orders', 1);
     }
 
+    /**
+     * Stripe's advice to the integrator must not reach the customer as a 500.
+     *
+     * Run against the real gateway, because the failure lived in the seam the
+     * fake removes: Stripe answers with a `Stripe-Notice` header ("you are
+     * using an outdated API version"), stripe-php raises it as a warning, and
+     * Laravel throws on warnings. The intent had been created at Stripe; the
+     * order, already placed and holding stock, never learned its id.
+     */
+    public function test_a_stripe_notice_does_not_fail_the_checkout(): void
+    {
+        $stripe = $this->realGateway();
+        $stripe->headers = ['Stripe-Notice' => 'You are using an outdated API version (2024-06-20).'];
+        Log::spy();
+
+        [$response, $order] = $this->placeCardOrder($this->variant());
+
+        $response->assertJsonPath('payment.reference', FakeStripeTransport::INTENT);
+        $response->assertJsonMissingPath('payment_error');
+
+        $this->assertSame(FakeStripeTransport::INTENT, $order->payments()->first()->provider_reference);
+        $this->assertSame(['POST /v1/payment_intents'], $stripe->requests);
+
+        // Logged, not lost: it is still advice somebody has to act on.
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($message, $context = []) => $message === 'Stripe notice.'
+                && str_contains($context['message'] ?? '', 'outdated API version'))
+            ->once();
+    }
+
+    /** Coming back to an unfinished payment asks Stripe about it and opens nothing new. */
+    public function test_reopening_an_unfinished_payment_reuses_its_intent(): void
+    {
+        $stripe = $this->realGateway();
+        [, $order] = $this->placeCardOrder($this->variant());
+
+        $stripe->requests = [];
+
+        $this->actingAs($this->shopper())
+            ->postJson("/api/v1/orders/{$order->order_number}/payment")
+            ->assertOk()
+            ->assertJsonPath('payment.reference', FakeStripeTransport::INTENT);
+
+        $this->assertSame(['GET /v1/payment_intents/'.FakeStripeTransport::INTENT], $stripe->requests);
+    }
+
+    /**
+     * The customer has paid and the webhook has not landed yet, so the order
+     * still reads as unpaid. Asking to pay it must not produce a second card
+     * form: the answer is that the money has arrived, flagged so the receipt
+     * page waits for the webhook rather than showing an error.
+     */
+    public function test_a_payment_stripe_has_already_taken_is_not_reopened(): void
+    {
+        $stripe = $this->realGateway();
+        [, $order] = $this->placeCardOrder($this->variant());
+
+        $stripe->intentStatus = 'succeeded';
+        $stripe->requests = [];
+
+        $this->actingAs($this->shopper())
+            ->postJson("/api/v1/orders/{$order->order_number}/payment")
+            ->assertStatus(409)
+            ->assertJsonPath('payment_received', true)
+            ->assertJsonMissingPath('payment');
+
+        // Asked what state the payment was in — and did not open another.
+        $this->assertSame(['GET /v1/payment_intents/'.FakeStripeTransport::INTENT], $stripe->requests);
+
+        // Still the webhook's job to say so: the order itself has not moved.
+        $this->assertSame(Order::PAYMENT_PENDING, $order->fresh()->payment_status);
+    }
+
     public function test_a_signed_webhook_marks_the_order_paid_and_commits_stock(): void
     {
         $variant = $this->variant(5000, 10);
@@ -324,6 +443,69 @@ class StripePaymentsTest extends TestCase
             1,
             InventoryMovement::where('reason', InventoryMovement::REASON_PURCHASE)->count(),
         );
+    }
+
+    /**
+     * The replay that arrives late. Stripe can deliver an event again long
+     * after the first one — and by then the order may have been refunded. That
+     * second delivery found an order that was "not paid", marked it paid again,
+     * took its stock a second time and put it back in the fulfilment queue.
+     */
+    public function test_a_webhook_replayed_after_a_refund_does_not_revive_the_order(): void
+    {
+        $variant = $this->variant(5000, 10);
+        [, $order] = $this->placeCardOrder($variant, 2);
+
+        $event = $this->succeededIntent($order);
+        $this->webhook('payment_intent.succeeded', $event)->assertOk();
+
+        app(OrderService::class)->refund(
+            order: $order->refresh(),
+            amountCents: $order->grand_total_cents,
+            reason: 'Customer changed their mind.',
+            restock: true,
+            throughGateway: true,
+        );
+
+        $this->assertSame(10, $variant->fresh()->stock_qty);
+
+        $this->webhook('payment_intent.succeeded', $event)->assertOk();
+
+        $order->refresh();
+        $this->assertSame(Order::PAYMENT_REFUNDED, $order->payment_status);
+        $this->assertSame(Order::STATUS_REFUNDED, $order->status);
+        $this->assertSame(Payment::STATUS_REFUNDED, $order->payments()->first()->status);
+
+        $this->assertSame(10, $variant->fresh()->stock_qty);
+        $this->assertSame(
+            1,
+            InventoryMovement::where('reason', InventoryMovement::REASON_PURCHASE)->count(),
+        );
+    }
+
+    /** The same late replay against an order only part of which went back. */
+    public function test_a_webhook_replayed_after_a_partial_refund_changes_nothing(): void
+    {
+        $variant = $this->variant(5000, 10);
+        [, $order] = $this->placeCardOrder($variant, 2);
+
+        $event = $this->succeededIntent($order);
+        $this->webhook('payment_intent.succeeded', $event)->assertOk();
+
+        app(OrderService::class)->refund(
+            order: $order->refresh(),
+            amountCents: 2500,
+            reason: 'Goodwill.',
+            restock: false,
+            throughGateway: true,
+        );
+
+        $this->webhook('payment_intent.succeeded', $event)->assertOk();
+
+        $order->refresh();
+        $this->assertSame(Order::PAYMENT_PARTIALLY_REFUNDED, $order->payment_status);
+        $this->assertSame(Order::STATUS_PROCESSING, $order->status);
+        $this->assertSame(8, $variant->fresh()->stock_qty);
     }
 
     /** Paying less than the total is not paying for the order. */
@@ -462,18 +644,223 @@ class StripePaymentsTest extends TestCase
         $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
         $order->refresh();
 
-        $charge = [
-            'id' => 'ch_test',
-            'object' => 'charge',
-            'payment_intent' => $order->payments()->first()->provider_reference,
-            'refunds' => ['data' => [['id' => 're_dash_1', 'amount' => 1000]]],
-        ];
+        $this->stripe->refundedElsewhere = [new GatewayRefund('re_dash_1', 1000, 'succeeded')];
 
-        $this->webhook('charge.refunded', $charge)->assertOk();
-        $this->webhook('charge.refunded', $charge)->assertOk();
+        $this->webhook('charge.refunded', $this->refundedCharge($order))->assertOk();
+        $this->webhook('charge.refunded', $this->refundedCharge($order))->assertOk();
 
         $this->assertDatabaseCount('refunds', 1);
+        $this->assertDatabaseHas('refunds', ['provider_reference' => 're_dash_1', 'amount_cents' => 1000]);
         $this->assertSame(Order::PAYMENT_PARTIALLY_REFUNDED, $order->fresh()->payment_status);
+    }
+
+    /**
+     * A refund issued from admin comes back as the same event. The request
+     * that issued it writes the ledger row, so the webhook must leave it alone
+     * — including in the moment before that row exists. Run against the real
+     * gateway, because telling the two kinds of refund apart is its job.
+     */
+    public function test_only_refunds_made_outside_the_shop_are_recorded_from_the_webhook(): void
+    {
+        $stripe = $this->realGateway();
+        [, $order] = $this->placeCardOrder($this->variant(5000, 10), 2);
+
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+
+        $stripe->answers['GET /v1/refunds'] = [
+            'object' => 'list',
+            'has_more' => false,
+            'data' => [
+                // Issued by this shop a moment ago; its ledger row is not written yet.
+                ['id' => 're_ours', 'object' => 'refund', 'amount' => 2500, 'status' => 'succeeded',
+                    'metadata' => ['order_id' => (string) $order->id]],
+                // Issued by someone in the Stripe dashboard.
+                ['id' => 're_dashboard', 'object' => 'refund', 'amount' => 1000, 'status' => 'succeeded',
+                    'metadata' => []],
+                // Tried in the dashboard, and refused by the bank.
+                ['id' => 're_failed', 'object' => 'refund', 'amount' => 700, 'status' => 'failed',
+                    'metadata' => []],
+            ],
+        ];
+
+        $this->webhook('charge.refunded', $this->refundedCharge($order))->assertOk();
+
+        $this->assertSame(['re_dashboard'], $order->refunds()->pluck('provider_reference')->all());
+        $this->assertSame(1000, $order->fresh()->totalRefundedCents());
+    }
+
+    /**
+     * Not being able to ask is not the same as there being nothing to record.
+     * Money has moved that the ledger does not show, so somebody is told.
+     */
+    public function test_a_refund_stripe_cannot_be_asked_about_is_flagged_for_a_person(): void
+    {
+        [, $order] = $this->placeCardOrder($this->variant(5000, 10), 2);
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+
+        $this->stripe->failRefundLookup = true;
+
+        $this->webhook('charge.refunded', $this->refundedCharge($order))->assertOk();
+
+        $this->assertDatabaseCount('refunds', 0);
+        $this->assertTrue(
+            $order->statusHistory()->where('is_internal', true)->where('note', 'like', '%Stripe dashboard%')->exists(),
+        );
+    }
+
+    // ---------------------------------------------------------- card details
+
+    /**
+     * Stripe names the charge by id, so the card has to be asked for — and
+     * asked for once, not again on every redelivery of the same event.
+     */
+    public function test_the_card_is_looked_up_once_and_only_brand_and_last_four_are_kept(): void
+    {
+        [, $order] = $this->placeCardOrder($this->variant(5000, 10), 2);
+
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+
+        $payment = $order->payments()->first();
+        $this->assertSame('visa', $payment->card_brand);
+        $this->assertSame('4242', $payment->card_last_four);
+        $this->assertSame(1, $this->stripe->cardLookups);
+    }
+
+    /** "Which card?" must never be able to stand in the way of "is it paid?". */
+    public function test_an_order_is_paid_even_when_the_card_cannot_be_looked_up(): void
+    {
+        $this->stripe->card = null;
+
+        [, $order] = $this->placeCardOrder($this->variant(5000, 10), 2);
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+
+        $this->assertSame(Order::PAYMENT_PAID, $order->fresh()->payment_status);
+        $this->assertNull($order->payments()->first()->card_last_four);
+    }
+
+    /** The real gateway reads the card off the charge Stripe expands for it. */
+    public function test_the_gateway_reads_the_card_from_the_expanded_charge(): void
+    {
+        $stripe = $this->realGateway();
+        [, $order] = $this->placeCardOrder($this->variant(5000, 10), 2);
+
+        $stripe->intentStatus = 'succeeded';
+        $stripe->intentExtras = ['latest_charge' => [
+            'id' => 'ch_test',
+            'object' => 'charge',
+            'payment_method_details' => ['type' => 'card', 'card' => ['brand' => 'mastercard', 'last4' => '4444']],
+        ]];
+
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+
+        $payment = $order->payments()->first();
+        $this->assertSame('mastercard', $payment->card_brand);
+        $this->assertSame('4444', $payment->card_last_four);
+    }
+
+    // ------------------------------------------- cancelling after a decline
+
+    /**
+     * A declined card leaves its payment open at Stripe for another attempt.
+     * Cancelling the order used to release only payments still marked pending,
+     * so after a decline the card form behind a cancelled order stayed live.
+     */
+    public function test_cancelling_after_a_declined_card_closes_the_payment_at_the_provider(): void
+    {
+        [, $order] = $this->placeCardOrder($this->variant(5000, 10), 2);
+        $payment = $order->payments()->first();
+
+        $this->webhook('payment_intent.payment_failed', [
+            'id' => $payment->provider_reference,
+            'object' => 'payment_intent',
+            'last_payment_error' => ['message' => 'Your card was declined.'],
+        ])->assertOk();
+
+        $this->assertSame(Payment::STATUS_FAILED, $payment->fresh()->status);
+
+        app(OrderService::class)->cancel($order->fresh());
+
+        $this->assertSame([$payment->id], $this->stripe->abandoned);
+    }
+
+    /**
+     * The payment that lands anyway — made in the same second the order was
+     * cancelled. It is flagged for a refund, and the shop has to be able to
+     * make one: through the provider, without returning stock that never left,
+     * and without turning a cancelled order into a paid or refunded one.
+     */
+    public function test_a_payment_that_lands_on_a_cancelled_order_can_be_refunded(): void
+    {
+        $variant = $this->variant(5000, 10);
+        [, $order] = $this->placeCardOrder($variant, 2);
+
+        app(OrderService::class)->cancel($order, 'Reservation expired.');
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+
+        $order->refresh();
+        $this->assertTrue($order->hasStrayPayment());
+
+        $refund = app(OrderService::class)->refund(
+            order: $order,
+            amountCents: $order->grand_total_cents,
+            reason: 'Paid after the order was cancelled.',
+            restock: true,
+            throughGateway: true,
+        );
+
+        $this->assertCount(1, $this->stripe->refunded);
+        $this->assertFalse((bool) $refund->restock);
+        $this->assertSame(10, $variant->fresh()->stock_qty);
+
+        $order->refresh();
+        $this->assertSame(Order::STATUS_CANCELLED, $order->status);
+        $this->assertSame(Order::PAYMENT_PENDING, $order->payment_status);
+        $this->assertSame(Payment::STATUS_REFUNDED, $order->payments()->first()->status);
+        $this->assertFalse($order->hasStrayPayment());
+
+        // The same event delivered again does not bring the payment back.
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($order))->assertOk();
+
+        $this->assertSame(Payment::STATUS_REFUNDED, $order->payments()->first()->status);
+        $this->assertSame(1, $order->statusHistory()->where('note', 'like', '%AFTER cancellation%')->count());
+    }
+
+    /**
+     * And from where an administrator actually does it. The Refund action was
+     * only ever offered on paid orders, so the note telling them to refund this
+     * one pointed at a button that was not there.
+     */
+    public function test_the_admin_order_page_offers_the_refund_for_a_late_payment(): void
+    {
+        $variant = $this->variant(5000, 10);
+        [, $late] = $this->placeCardOrder($variant, 2);
+        app(OrderService::class)->cancel($late, 'Reservation expired.');
+        $this->webhook('payment_intent.succeeded', $this->succeededIntent($late))->assertOk();
+
+        // Cancelled too, but nobody ever paid for it: nothing to refund.
+        $this->cartToken = null;
+        [, $unpaid] = $this->placeCardOrder($variant, 1);
+        app(OrderService::class)->cancel($unpaid, 'Reservation expired.');
+
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']));
+
+        Livewire::test(ViewOrder::class, ['record' => $unpaid->getRouteKey()])
+            ->assertActionHidden('refund');
+
+        Livewire::test(ViewOrder::class, ['record' => $late->getRouteKey()])
+            ->assertActionVisible('refund')
+            ->callAction('refund', data: [
+                'amount' => number_format($late->grand_total_cents / 100, 2, '.', ''),
+                'reason' => 'Paid after cancellation.',
+            ])
+            ->assertHasNoActionErrors();
+
+        $this->assertCount(1, $this->stripe->refunded);
+        $this->assertSame($late->grand_total_cents, $this->stripe->refunded[0]['amount']);
+        $this->assertSame(Payment::STATUS_REFUNDED, $late->payments()->first()->status);
+        $this->assertSame(Order::STATUS_CANCELLED, $late->fresh()->status);
+        $this->assertSame(10, $variant->fresh()->stock_qty);
     }
 
     // ------------------------------------------------- reservation sweeper

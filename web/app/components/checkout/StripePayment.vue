@@ -105,6 +105,18 @@ onMounted(async () => {
       emit('ready')
     })
 
+    // Stripe.js loaded but the form inside it could not — an intent that can no
+    // longer be paid, most often. Without this the page says "Loading secure
+    // card form…" for ever. Stripe's own wording here is written for
+    // integrators, so it goes to the console and the customer gets ours.
+    element.on('loaderror', (event) => {
+      console.error('Stripe payment element failed to load.', event.error)
+
+      failed.value = 'The card form could not be loaded. Please refresh the page and try again.'
+      loading.value = false
+      emit('error', failed.value)
+    })
+
     element.mount(mountPoint.value!)
   } catch (e: any) {
     // A blocked script or an offline browser must not leave a dead box on the

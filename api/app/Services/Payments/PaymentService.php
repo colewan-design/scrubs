@@ -160,7 +160,11 @@ class PaymentService
     public function abandon(Order $order): void
     {
         foreach ($order->payments as $payment) {
-            if ($payment->status !== Payment::STATUS_PENDING) {
+            // Failed as well as pending. A declined card leaves its payment
+            // open at the provider for the next attempt, so a row marked failed
+            // is exactly as payable as one still pending — and skipping it left
+            // a cancelled order with a live card form behind it.
+            if (! in_array($payment->status, [Payment::STATUS_PENDING, Payment::STATUS_FAILED], true)) {
                 continue;
             }
 
