@@ -142,7 +142,7 @@ function toggleFaq(index: number) {
   <div class="wholesale-page">
     <section class="hero-section">
       <div class="hero-photo" aria-hidden="true">
-        <img src="/images/home-hero-scrubs.png" alt="">
+        <img src="/images/home-hero-scrubs.webp" alt="">
       </div>
 
       <div class="wholesale-container hero-content">

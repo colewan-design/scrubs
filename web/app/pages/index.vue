@@ -106,7 +106,7 @@ const reasons = [
     <section class="home-hero relative bg-[#fbf5ef]" aria-labelledby="home-hero-title">
       <div class="absolute inset-0 mx-auto max-w-[1600px]" aria-hidden="true">
         <img
-          src="/images/home-hero-scrubs.png"
+          src="/images/home-hero-scrubs.webp"
           alt=""
           class="h-full w-full object-cover object-top"
         >
@@ -322,7 +322,7 @@ const reasons = [
           </NuxtLink>
         </div>
         <img
-          src="/images/home-hero-scrubs.png"
+          src="/images/home-hero-scrubs.webp"
           alt="Healthcare professionals in lavender and navy scrubs"
           class="absolute inset-y-0 right-[-18%] h-full w-[84%] object-cover object-[76%_center]"
         >
