@@ -301,6 +301,8 @@ export interface Order {
   phone: string | null
   customer_note: string | null
   is_cancellable: boolean
+  /** Whether the shop is sending order email at all — so the receipt only promises one when it is. */
+  emails_enabled?: boolean
   /** Which provider is settling this order — 'stripe', 'etransfer', 'manual'. */
   payment_method?: string | null
   pricing_tier_name: string | null

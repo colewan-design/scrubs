@@ -3,22 +3,12 @@
 namespace App\Notifications;
 
 use App\Models\Order;
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /** "Your payment cleared" (§10). Sent when an order moves to Paid. */
-class PaymentReceived extends Notification
+class PaymentReceived extends OrderNotification
 {
-    use Queueable;
-
     public function __construct(public Order $order) {}
-
-    /** @return array<int, string> */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {
@@ -33,7 +23,7 @@ class PaymentReceived extends Notification
             ->line($order->isPickup()
                 ? 'We are preparing your order and will tell you when it is ready to collect.'
                 : 'We are preparing your order and will send tracking details once it ships.')
-            ->action('View your order', url("/orders/{$order->order_number}"))
+            ->action('View your order', $order->storefrontUrl())
             ->salutation('— BulkScrubs Direct');
     }
 }

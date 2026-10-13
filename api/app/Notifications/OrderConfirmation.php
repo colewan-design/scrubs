@@ -4,9 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Order;
 use App\Support\Settings;
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * "We have your order" (§10).
@@ -15,17 +13,9 @@ use Illuminate\Notifications\Notification;
  * manual this email is also where the customer learns how to pay, so the
  * e-Transfer instructions travel with it rather than in a second message.
  */
-class OrderConfirmation extends Notification
+class OrderConfirmation extends OrderNotification
 {
-    use Queueable;
-
     public function __construct(public Order $order) {}
-
-    /** @return array<int, string> */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {
@@ -40,8 +30,13 @@ class OrderConfirmation extends Notification
             ->line('**Total: '.$this->money($order->grand_total_cents).' CAD**');
 
         foreach ($order->items as $item) {
-            $mail->line("{$item->qty} × {$item->product_name} — "
-                .$this->money($item->line_total_cents));
+            // With the colour and size: an order of one top in three sizes is
+            // otherwise three identical lines.
+            $variant = $item->variantLabel();
+
+            $mail->line("{$item->qty} × {$item->product_name}"
+                .($variant !== '' ? " ({$variant})" : '')
+                .' — '.$this->money($item->line_total_cents));
         }
 
         if ($order->isPickup()) {
@@ -71,7 +66,7 @@ class OrderConfirmation extends Notification
         }
 
         return $mail
-            ->action('View your order', url("/orders/{$order->order_number}"))
+            ->action('View your order', $order->storefrontUrl())
             ->salutation('— BulkScrubs Direct');
     }
 

@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Order;
 use App\Models\OrderAddress;
+use App\Services\Notifications\OrderNotifier;
 use App\Support\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -31,6 +32,10 @@ class OrderResource extends JsonResource
             'phone' => $this->phone,
             'customer_note' => $this->customer_note,
             'is_cancellable' => $this->isCancellable(),
+            // Whether the shop is sending order email at all (§10). The receipt
+            // page said "a confirmation has been sent" on every order while
+            // the switch was off and nothing was; it now says so only when true.
+            'emails_enabled' => app(OrderNotifier::class)->enabled(),
 
             'pricing_tier_name' => $this->pricing_tier_name,
             'totals' => [

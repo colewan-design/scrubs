@@ -197,10 +197,18 @@ useSeoMeta({ title: `Order ${route.params.number}`, robots: 'noindex' })
         Thank you — order {{ order.order_number }}
       </h1>
 
-      <p class="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink-700">
+      <!-- Only promises email while the shop is sending any. With order emails
+           switched off this used to tell every customer a confirmation had
+           been sent, and nothing had. -->
+      <p v-if="order.emails_enabled" class="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink-700">
         A confirmation has been sent to <strong>{{ order.email }}</strong>. Your
         order is currently <strong>{{ order.status_label }}</strong
         >; we will email you as soon as that changes.
+      </p>
+      <p v-else class="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink-700">
+        Your order is currently <strong>{{ order.status_label }}</strong
+        >. Keep this page or your order number handy — you can also find it any
+        time under <NuxtLink to="/account/orders" class="underline underline-offset-4">your orders</NuxtLink>.
       </p>
 
       <!-- Payment, when there is something to say about it. A settled order

@@ -3,9 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Order;
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * Administrator alert for a new order (§10).
@@ -13,17 +11,9 @@ use Illuminate\Notifications\Notification;
  * Deliberately terse and factual — it exists so nobody has to keep the admin
  * dashboard open to notice that an order arrived.
  */
-class NewOrderAlert extends Notification
+class NewOrderAlert extends OrderNotification
 {
-    use Queueable;
-
     public function __construct(public Order $order) {}
-
-    /** @return array<int, string> */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {

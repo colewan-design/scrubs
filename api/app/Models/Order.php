@@ -184,6 +184,24 @@ class Order extends Model
             && hash_equals(strtolower($this->email), strtolower($email));
     }
 
+    /**
+     * Where the customer reads this order on the storefront — the link every
+     * order email carries.
+     *
+     * It includes the email the order was placed with, because that is the
+     * proof of ownership the page asks of anyone who is not signed in (see
+     * canBeViewedBy), and an order email is as often as not opened on a phone
+     * that is not. Without it the link is a 404 for its own recipient. And it
+     * is built on the storefront's address, not this API's: the two are one
+     * origin in production and two in development.
+     */
+    public function storefrontUrl(): string
+    {
+        return rtrim((string) config('app.frontend_url'), '/')
+            .'/orders/'.rawurlencode($this->order_number)
+            .'?'.http_build_query(['email' => $this->email]);
+    }
+
     /** Still waiting on money: the only state in which paying is meaningful. */
     public function awaitingPayment(): bool
     {

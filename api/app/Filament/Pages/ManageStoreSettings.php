@@ -153,10 +153,16 @@ class ManageStoreSettings extends Page
                         ])->columns(2),
 
                         Section::make('Email notifications')
-                            ->description('Order confirmations, payment receipts, shipping notices and the new-order alert. All of them are built and wired — this switch is what makes them send, once a mail service is configured.')
+                            ->description(self::mailStatus())
                             ->schema([
                                 Toggle::make(self::field('notifications.enabled'))
-                                    ->label('Send order emails'),
+                                    ->label('Send order emails')
+                                    // Cannot be switched ON with nothing to send
+                                    // through: the storefront tells customers a
+                                    // confirmation is on its way from the moment
+                                    // this is on. Switching it off always works.
+                                    ->disabled(fn () => ! self::mailDeliverable()
+                                        && ! app(Settings::class)->bool('notifications.enabled')),
 
                                 TextInput::make(self::field('notifications.admin_email'))
                                     ->label('New-order alerts to')
@@ -323,6 +329,44 @@ class ManageStoreSettings extends Page
         return config('services.stallion.mode') === 'sandbox'
             ? 'Connected to the Stallion SANDBOX, whose rates are test data — do not use it for real orders. '.$offer
             : $offer;
+    }
+
+    /**
+     * Whether mail leaves the building.
+     *
+     * `log` and `array` are the two mailers that accept a message and deliver
+     * it nowhere — the right thing in development and under test, and in
+     * production the difference between a customer getting a receipt and a
+     * line being appended to a file.
+     */
+    protected static function mailDeliverable(): bool
+    {
+        $mailer = (string) config('mail.default');
+
+        if (in_array($mailer, ['', 'log', 'array'], true)) {
+            return false;
+        }
+
+        return $mailer !== 'smtp'
+            || (config('mail.mailers.smtp.host') && config('mail.mailers.smtp.username'));
+    }
+
+    /** Says where order email is going, or why it is going nowhere. */
+    protected static function mailStatus(): string
+    {
+        $what = 'Order confirmations, payment receipts, shipping notices and the new-order alert. ';
+
+        if (! self::mailDeliverable()) {
+            return $what.'Nothing can be sent yet: this server writes mail to its log instead of delivering it '
+                .'(MAIL_MAILER='.(config('mail.default') ?: 'unset').'). Configure a mail service in the server '
+                .'environment first; the switch below unlocks once one is in place.';
+        }
+
+        $via = config('mail.default') === 'smtp'
+            ? (string) config('mail.mailers.smtp.host')
+            : (string) config('mail.default');
+
+        return $what."Sent through {$via} as ".config('mail.from.address').'. This switch is what makes them send.';
     }
 
     /**

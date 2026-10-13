@@ -4,29 +4,19 @@ namespace App\Notifications;
 
 use App\Models\Order;
 use App\Models\Shipment;
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * "Your order is on its way" (§10) — or, for a pickup order, that it is ready
  * to collect. One notification covers both because to the customer they are the
  * same event: the thing they bought is now available to them.
  */
-class OrderShipped extends Notification
+class OrderShipped extends OrderNotification
 {
-    use Queueable;
-
     public function __construct(
         public Order $order,
         public ?Shipment $shipment = null,
     ) {}
-
-    /** @return array<int, string> */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {
@@ -37,7 +27,7 @@ class OrderShipped extends Notification
                 ->subject("Order {$order->order_number} is ready to collect")
                 ->greeting('Ready for collection')
                 ->line("Order {$order->order_number} is packed and waiting for you.")
-                ->action('View your order', url("/orders/{$order->order_number}"))
+                ->action('View your order', $order->storefrontUrl())
                 ->salutation('— BulkScrubs Direct');
         }
 
@@ -61,7 +51,7 @@ class OrderShipped extends Notification
         return $mail
             ->action(
                 $shipment?->tracking_url ? 'Track your parcel' : 'View your order',
-                $shipment?->tracking_url ?: url("/orders/{$order->order_number}"),
+                $shipment?->tracking_url ?: $order->storefrontUrl(),
             )
             ->salutation('— BulkScrubs Direct');
     }
