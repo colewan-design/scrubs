@@ -127,11 +127,14 @@ function goToSignIn() {
            which is the shortest path from the lock to the price. -->
       <AuthSocialButtons class="mt-3" verb="Sign up with" :divider="false" />
 
-      <!-- TODO(§14): these become links once the client supplies the policy
-           wording and the pages exist. Plain text until then, rather than
-           shipping two links that 404. -->
+      <!-- Both pages exist now. Until the client's wording is published each
+           one says its policy is pending, which is still a better answer to
+           "what am I agreeing to?" than text that cannot be clicked. -->
       <p class="mt-4 text-center text-[12px] leading-relaxed text-ink-400">
-        By proceeding, you agree to our Terms and Privacy Policy.
+        By proceeding, you agree to our
+        <NuxtLink to="/policies/terms" class="underline underline-offset-2 hover:text-ink-700">Terms</NuxtLink>
+        and
+        <NuxtLink to="/policies/privacy" class="underline underline-offset-2 hover:text-ink-700">Privacy Policy</NuxtLink>.
       </p>
     </div>
 
