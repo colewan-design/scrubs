@@ -29,47 +29,49 @@ nothing has to be transferred back to you at handover.
 
 | # | Item | When | If it is late |
 |---|---|---|---|
-| 2 | Google app password — order emails | Week 1–2 | **Launch blocker** — no emails can send |
-| 3 | Google OAuth client ID + secret — sign-in | Week 3 | Not blocking — button stays hidden |
+| 2 | Order email — a mailbox on your own domain (replaces the Google app password) | Now | **Launch blocker** — no emails can send |
+| 3 | ~~Google OAuth client ID + secret — sign-in~~ — live since 2026-10-02 | Done | Project to be transferred to you at handover |
 | 4 | ~~Payment gateway keys~~ — PayPal received 2026-09-25, webhook ID received 2026-09-25 | Done | Rotate the secret |
-| 5 | Domain / DNS access | Week 1 | **Launch blocker** — email lands in spam |
-| 6 | Hosting account | Week 2 | **Launch blocker** — nothing can be deployed |
+| 5 | ~~Domain / DNS access~~ — live on Hostinger, email records in place | Done | — |
+| 6 | ~~Hosting account~~ — live on Hostinger | Done | — |
 | 7 | Stallion Express API key | Week 5 | Not blocking — falls back to fixed rates |
 | 8 | Backup storage bucket | Week 10 | Backups sit only on the server they protect |
 | 9 | Business and tax values | Week 8–10 | Wrong tax, wrong invoices |
 
 ---
 
-## 2. Google app password — so the website can send order emails
+## 2. Order email — a mailbox on your own domain
 
-Order confirmations, shipping notices and password resets are all built. They cannot leave the server
-without this.
+Order confirmations, payment receipts, shipping notices and password resets are all built and tested.
+They cannot leave the server without a mailbox to send from.
 
-**2-Step Verification must be on first** — app passwords do not appear as an option until it is. This
-is the usual reason the menu item "isn't there".
+**This replaces the Google app password asked for in the earlier version of this document.** The
+hosting plan already includes email for `bulkscrubsdirect.ca`, and the records that prove mail from
+the domain is genuinely yours (SPF, DKIM and DMARC) are in place. Sending from a mailbox on that
+service means order emails arrive authenticated, with no extra subscription and nothing to set up at
+Google.
 
-1. `myaccount.google.com` → **Security** → turn on **2-Step Verification**.
-2. Go to `myaccount.google.com/apppasswords`.
-3. Name it **BulkScrubs Website** → **Create**.
-4. Copy the 16-character password Google shows. It is shown once only.
+1. In Hostinger **hPanel → Emails → bulkscrubsdirect.ca**, create a mailbox named
+   **orders@bulkscrubsdirect.ca**.
+2. Set a strong password for it. It is used by the website only; nobody needs to log in with it day
+   to day, though replies from customers will arrive there, so decide who reads it.
 
-**Send back:** the sending email address, the 16-character password, and whether the account is free
-Gmail or Google Workspace.
+**Send back:** the mailbox password, through `onetimesecret.com` as in "How to send these safely".
 
-### One decision attached to this
+Also tell us the address new-order alerts should go to — that can be the same mailbox or a personal
+one.
 
-Free Gmail cannot authenticate mail for `bulkscrubsdirect.ca`, so order confirmations from that domain
-will fail spam checks and a real share of them will land in junk folders. Free Gmail also rewrites the
-sender address unless it is a verified alias, and caps out around 500 messages a day.
-
-**Recommended:** Google Workspace (~$9 CAD per user per month) if you want everything in one place, or
-Postmark (~$15 USD/month) if you would rather have delivery and bounce reporting.
-
-☐ Google Workspace ☐ Postmark ☐ Free Gmail — understood, with the above
+☐ Mailbox created ☐ Password sent ☐ New-order alert address chosen
 
 ---
 
 ## 3. Google sign-in — the "Continue with Google" button
+
+**Done — live since 2026-10-02.** Nothing further is needed from you before launch. The Google Cloud
+project that holds the sign-in credentials currently sits on the developer's Google account so that
+work was not held up; at handover your Google account is added to it as Owner and the developer is
+removed. The Client ID and secret do not change when that happens, so nothing on the site changes
+either. The steps below are kept as the record of how it was set up.
 
 The only social sign-in provider; Apple was dropped on 4 September. The button stays hidden until
 these exist, so nothing breaks in the meantime.
@@ -134,7 +136,14 @@ dashboard (**Apps & Credentials → Sandbox**) would let the flow be exercised e
 create a sandbox app, its webhook ID would be useful too — it belongs to that environment and cannot
 be used against live.
 
-### Cards — needs Stripe keys
+### Cards — needs Stripe live keys
+
+**Update, 2026-10-13.** The test keys and a test-mode webhook are in place (read from your Stripe
+account with the Developer access you granted, so nothing had to be sent), and a test-card order has
+been placed, paid and refunded on the live site. Two things are still needed from you before real
+cards can be taken: **finish payout setup in Stripe** — the account can charge cards but cannot yet
+pay the money out to your bank — and then the **live keys**, which replace all three test values
+together. The rest of this section is the original request, kept for the record.
 
 PayPal covers PayPal balances and cards held inside a PayPal account. It does not put a card form on
 our own checkout page, so paying by card without a PayPal account is a second integration. That
@@ -157,11 +166,16 @@ that, a signed event from Stripe does — and every card order would sit in *Pen
 somebody marked it by hand.
 
 ☐ Secret rotated and replacement sent ☑ Webhook created and ID sent ☐ Sandbox credentials sent
-☐ Stripe test keys sent ☐ Stripe webhook created and signing secret sent ☐ Stripe live keys sent
+☑ Stripe test keys — in place 2026-10-12 ☑ Stripe test webhook — in place 2026-10-12
+☐ Stripe payout setup finished ☐ Stripe live keys sent
 
 ---
 
 ## 5. Domain and DNS
+
+**Done.** `bulkscrubsdirect.ca` is live on Hostinger and the email records (MX, SPF, DKIM and DMARC)
+are in place. What remains is confirming at handover that the domain is registered in the business's
+name. The original request is kept below for the record.
 
 **Act on this in week 1.** DNS changes take up to 48 hours to propagate, and the email records need to
 be live well before the first real order email is sent.
@@ -180,6 +194,10 @@ answer in §2.
 ---
 
 ## 6. Hosting
+
+**Done.** The site runs on a Hostinger VPS, and the hosting plan's email is what §2 sends through.
+What remains is confirming at handover that the Hostinger account is in the business's name. The
+original request is kept below for the record.
 
 | Field | Notes |
 |---|---|
@@ -249,13 +267,14 @@ so everything needed to switch the site on is in one document.
 
 Tick as sent. Nothing needs to arrive in order.
 
-☐ **2** Sending address + app password + Workspace/Postmark/Gmail decision
-☐ **3** Google OAuth Client ID + Client secret
+☐ **2** `orders@bulkscrubsdirect.ca` mailbox created + its password + new-order alert address
+☑ **3** Google sign-in — live 2026-10-02; project transferred to you at handover
 ☑ **4** PayPal client ID + secret — received 2026-09-25, integrated
 ☑ **4** PayPal webhook ID — received 2026-09-25, configured
 ☐ **4** PayPal secret rotated (it was sent in plain text) + sandbox credentials
-☐ **5** Domain registrar + access arrangement
-☐ **6** Hosting provider + team access
+☐ **4** Stripe payout setup finished + live keys (test keys are in place and card checkout is tested)
+☑ **5** Domain and DNS — live on Hostinger
+☑ **6** Hosting — live on Hostinger
 ☐ **7** Stallion Express API key + service selection
 ☐ **8** Backup bucket details
 ☐ **9** Business and tax values

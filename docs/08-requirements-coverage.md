@@ -62,6 +62,16 @@ below the threshold still checks out at retail. Detail in
 > **Updated 2026-09-21.** Card payment is now built. Stripe is integrated through Payment Intents
 > with the Payment Element embedded in the existing checkout page, covered by 18 integration tests.
 > Nothing remains but credentials.
+>
+> **Updated 2026-10-13.** That last sentence was wrong. The 18 tests ran against a stand-in for
+> Stripe, and the first checkout run against Stripe's real test mode failed outright: an advisory
+> header from Stripe about an outdated API version became an exception, and checkout answered 500.
+> Behind it were further defects — a receipt that told a paying customer nothing had been charged,
+> refunds from the Stripe dashboard never recorded, card details never saved, an order revived by a
+> redelivered payment event, and stock returned twice or not at all around refunds. All are fixed
+> and deployed (`c67e5be`), each with a test that fails without the fix, and a test-card order has
+> since been placed, paid and refunded on the live site. Cards remain switched off until launch.
+> What remains now really is credentials: payout setup and live keys.
 
 | Item | State |
 |---|---|
@@ -69,7 +79,7 @@ below the threshold still checks out at retail. Detail in
 | Contact info, shipping/billing address, ship-or-pickup, Canadian taxes, shipping charge, wholesale discount, subtotal and total, order confirmation | ✅ all present at checkout |
 | **Visa / Mastercard / Amex** | ✅ Stripe Payment Element |
 | **Apple Pay / Google Pay** | ✅ appear automatically on supporting devices — no per-method code |
-| **PayPal** | ⚠️ see below |
+| **PayPal** | ✅ built as its own integration (PayPal Checkout), 2026-09-25 — switched off until launch; see below |
 | Interac e-Transfer / manual payment | ✅ unchanged — placed as *Pending Payment* and settled by an administrator |
 | BNPL not required at launch, architecture allows it later | ✅ a Stripe dashboard switch, not development work |
 
@@ -86,12 +96,12 @@ double-counting.
 
 **Two things worth knowing:**
 
-- **PayPal may not be available through Stripe on a Canadian account.** Stripe offers PayPal as a
-  payment method only in certain regions, and Canada has historically not been among them. **This
-  must be checked against the live account before launch rather than assumed.** If it is
-  unavailable, PayPal is a second implementation of the `PaymentGateway` interface alongside
-  `StripeGateway` — which is why that interface exists rather than the order code calling Stripe
-  directly. Budget ~1 week if it is needed.
+- **PayPal is its own integration, not a Stripe payment method.** The open question here was
+  whether a Canadian Stripe account could offer PayPal. It no longer matters: PayPal was built
+  directly against PayPal Checkout on 2026-09-25 (`PayPalService`, with its own webhook), beside
+  Stripe rather than through it. It has only ever been exercised against a simulated PayPal — the
+  credentials on file are live ones, so nothing real has been run through it — and it stays
+  switched off until sandbox credentials arrive and a real test payment has been made.
 - **Cards require two switches, deliberately.** Keys present in the server environment *and*
   "Accept card payments" enabled in Store settings → Payments. Pasting a key into `.env` must not
   silently start charging customers, and the toggle alone must not offer a card form with nothing
@@ -227,18 +237,18 @@ Ranked by what actually holds up launch.
 
 | # | Gap | Section | Blocked on | Effort |
 |---|---|---|---|---|
-| 1 | **Stripe keys + webhook secret** | §4 | Client: merchant account (approval takes weeks — open it now) | minutes once they arrive |
-| 2 | Switch on transactional email (mailer + toggle) | §10 | Client: mail service account | ~half a day |
-| 3 | Confirm PayPal availability on the live Stripe account | §4 | Client: account exists | ~1 week **only if** unavailable |
+| 1 | **Stripe live keys** (test keys and webhook are in place; card checkout tested on the live site 2026-10-13) | §4 | Client: finish payout setup, then live keys | minutes once they arrive |
+| 2 | Switch on transactional email (mailer + toggle) | §10 | A mailbox on the domain (`orders@`, Hostinger) and its password | under an hour once it exists |
+| 3 | Test PayPal against its sandbox, then switch it on | §4 | Client: sandbox credentials, and the live secret rotated | ~half a day |
 | 4 | Confirm PST/QST registration, then activate those rates | §6 | Client: registration status | minutes once known |
 | 5 | Set `BACKUP_DISK` and add the scheduler cron entry | §12 | Deployment: object-storage bucket | ~1 hour at deploy |
 | 6 | Stallion live-rate validation | §5 | Client: account + API key | ~2 days once keyed |
 | 7 | Stallion label creation / shipment push | §5 | Same key; "if supported" in the brief | ~3 days, optional |
 
 **Nothing on this list is blocked on development work alone.** Every item waits on the client, a
-third party, or the production deploy. Items 1 and 3 share one dependency — the Stripe account —
-which is why it is the single most time-sensitive thing outstanding: the code is finished and
-tested, and merchant approval is the only part nobody can make go faster.
+third party, or the production deploy. Item 1 is the most time-sensitive thing outstanding: the
+code is finished and has been run end to end on the live site in test mode, and payout setup on the
+Stripe account is the one part nobody but the client can make go faster.
 
 **One scheduler note carried over from §12, now more important than it was.** The cron entry
 
