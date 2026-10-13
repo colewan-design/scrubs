@@ -202,9 +202,30 @@ const related = computed(() =>
     .slice(0, RELATED_LIMIT),
 )
 
+/**
+ * What a shared link looks like. Without these a product pasted into a chat or
+ * a post unfurls as a bare URL; with them it carries the product's own name,
+ * line and photograph. The image has to be an absolute address — the card is
+ * fetched by somebody else's server, which has no idea what "/…" is relative to.
+ */
+const siteUrl = useRuntimeConfig().public.siteUrl.replace(/\/+$/, '')
+const shareImage = computed(() => {
+  const path = product.value.images?.[0]?.path
+
+  if (!path) return undefined
+
+  return /^https?:\/\//.test(path) ? path : siteUrl + (path.startsWith('/') ? path : `/${path}`)
+})
+
 useSeoMeta({
   title: () => product.value.meta.title,
   description: () => product.value.meta.description ?? undefined,
+  ogType: 'product',
+  ogTitle: () => product.value.meta.title,
+  ogDescription: () => product.value.meta.description ?? product.value.short_description ?? undefined,
+  ogImage: shareImage,
+  ogImageAlt: () => product.value.images?.[0]?.alt ?? product.value.name,
+  twitterCard: 'summary_large_image',
 })
 
 // Product structured data for search results.
