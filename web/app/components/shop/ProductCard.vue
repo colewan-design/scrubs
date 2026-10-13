@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Heart } from 'lucide-vue-next'
 import type { ProductCard } from '~/composables/useApi'
 
 /**
@@ -22,13 +21,11 @@ const props = withDefaults(defineProps<{
   compact: false,
 })
 
-/**
- * TODO(wishlist): drawn on the tile because the redesign draws it there, and
- * deliberately inert — no wishlist exists in the API or in §8. Sits above the
- * title's stretched-link overlay so it takes its own click rather than
- * navigating, the same arrangement the wholesale lock below uses.
- */
-const wishlisted = ref(false)
+// The redesign draws a wishlist heart in the image's top-right corner. It is
+// not here: no wishlist exists in the API or in §8, and a heart that fills when
+// pressed and forgets on the next page is a promise the site does not keep.
+// When one is built it sits above the title's stretched-link overlay (z-10),
+// the same arrangement the wholesale lock below uses.
 </script>
 
 <template>
@@ -55,17 +52,6 @@ const wishlisted = ref(false)
       >
         Image to follow
       </div>
-
-      <button
-        type="button"
-        class="absolute top-2.5 right-2.5 z-10 grid size-8 place-items-center rounded-full bg-white/90
-               text-ink-500 transition-colors hover:text-ink-900"
-        :aria-pressed="wishlisted"
-        :aria-label="wishlisted ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`"
-        @click="wishlisted = !wishlisted"
-      >
-        <Heart :size="15" :fill="wishlisted ? 'currentColor' : 'none'" aria-hidden="true" />
-      </button>
 
       <div class="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
         <UiBaseBadge v-if="product.is_featured" tone="neutral">New</UiBaseBadge>

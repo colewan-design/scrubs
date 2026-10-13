@@ -2,7 +2,6 @@
 import {
   ArrowLeft,
   ArrowRight,
-  ChevronDown,
   FileText,
   Info,
   Lock,
@@ -64,21 +63,11 @@ const recommended = computed(() => {
     .slice(0, RECOMMEND_LIMIT)
 })
 
-/**
- * TODO(promotions): drawn because the redesign draws it, and deliberately
- * honest. There is no promotions API — no codes exist, no table, no admin
- * screen — so this rejects what it is given rather than pretending to apply a
- * discount the server would never charge. Wiring it up is a small API addition
- * whenever the client wants one.
- */
-const promoOpen = ref(false)
-const promoCode = ref('')
-const promoMessage = ref('')
-
-function applyPromo() {
-  const code = promoCode.value.trim()
-  promoMessage.value = code ? `${code} isn't a valid code.` : ''
-}
+// The redesign draws a "Have a promo code?" box under the checkout button. It
+// is not here: there is no promotions API — no codes, no table, no admin screen
+// — so the box could only ever tell a shopper their code was invalid. It comes
+// back with the feature, which is a small API addition whenever the client
+// wants one.
 
 // Spelled out for a screen reader as well as drawn as an ⓘ: the icon alone
 // tells a non-sighted shopper nothing about why a figure is missing.
@@ -378,41 +367,6 @@ const ROW = 'md:grid md:grid-cols-[minmax(0,2.4fr)_1.2fr_0.9fr_1fr_0.9fr] md:ite
               <Lock :size="12" aria-hidden="true" />
               Secure checkout. Your information is protected.
             </p>
-
-            <!-- Promo code. See the TODO above: nothing here can be redeemed yet. -->
-            <div class="mt-4 border-t border-edge-subtle pt-4">
-              <button
-                class="flex w-full items-center justify-between text-[14px] text-ink-900"
-                :aria-expanded="promoOpen"
-                aria-controls="promo-panel"
-                @click="promoOpen = !promoOpen"
-              >
-                Have a promo code?
-                <ChevronDown
-                  :size="16"
-                  class="text-ink-500 transition-transform"
-                  :class="promoOpen && 'rotate-180'"
-                  aria-hidden="true"
-                />
-              </button>
-
-              <form v-if="promoOpen" id="promo-panel" class="mt-3 flex gap-2" @submit.prevent="applyPromo">
-                <input
-                  v-model="promoCode"
-                  type="text"
-                  aria-label="Promo code"
-                  placeholder="Enter code"
-                  class="h-10 min-w-0 flex-1 rounded-sm border border-edge px-3 text-[14px] text-ink-900
-                         placeholder:text-ink-400 focus:border-edge-strong focus:outline-none"
-                >
-                <UiBaseButton type="submit" variant="secondary" size="sm" class="h-10 shrink-0">
-                  Apply
-                </UiBaseButton>
-              </form>
-              <p v-if="promoOpen && promoMessage" class="mt-2 text-[12px] text-status-error" role="status">
-                {{ promoMessage }}
-              </p>
-            </div>
           </div>
 
           <!-- Larger orders route to a human rather than through the cart. -->

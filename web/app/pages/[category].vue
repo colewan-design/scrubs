@@ -7,8 +7,7 @@ import type { ProductCard } from '~/composables/useApi'
  * and not in the original brief (flagged as a gap during analysis).
  *
  * Carries the product page's redesign: the same eyebrow-over-serif-heading
- * masthead, the same card (which now owns the wishlist control), and the same
- * trust band closing the page.
+ * masthead, the same card, and the same trust band closing the page.
  */
 const route = useRoute()
 const api = useApi()

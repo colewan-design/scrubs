@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Heart, ZoomIn, Play, X } from 'lucide-vue-next'
+import { ZoomIn, Play, X } from 'lucide-vue-next'
 
 /**
  * Product page gallery: a vertical thumbnail rail beside the main image.
@@ -19,12 +19,9 @@ const active = defineModel<number>('active', { default: 0 })
 
 const zoomOpen = ref(false)
 
-/**
- * TODO(wishlist): there is no wishlist in the API or in §8 — this control is
- * drawn so the layout is final, and deliberately stores nothing. Wire it to a
- * real endpoint before it ships, or drop it.
- */
-const wishlisted = ref(false)
+// The redesign draws a wishlist heart over the image's top-right corner. It was
+// dropped rather than shipped: there is no wishlist in the API or in §8, and
+// the control stored nothing.
 
 const current = computed(() => props.images[active.value] ?? null)
 
@@ -92,17 +89,6 @@ watch(zoomOpen, (open) => {
           Product photography to follow
         </div>
       </div>
-
-      <button
-        type="button"
-        class="absolute top-3 right-3 grid size-10 place-items-center rounded-full bg-white/95 text-ink-700
-               shadow-pop transition-colors hover:text-ink-900"
-        :aria-pressed="wishlisted"
-        :aria-label="wishlisted ? 'Remove from wishlist' : 'Save to wishlist'"
-        @click="wishlisted = !wishlisted"
-      >
-        <Heart :size="17" :fill="wishlisted ? 'currentColor' : 'none'" aria-hidden="true" />
-      </button>
 
       <button
         v-if="current"
