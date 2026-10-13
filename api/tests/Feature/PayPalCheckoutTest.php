@@ -703,9 +703,14 @@ class PayPalCheckoutTest extends TestCase
 
         // And an administrator can see why the order is sitting there, so its
         // reserved stock is not the obvious thing to release.
+        //
+        // reorder() first: the relation already sorts oldest-first by timestamp,
+        // and latest('id') only added a tie-break to that. So this read the
+        // newest row when the two were written in the same second and "Order
+        // placed." whenever the test straddled one — which it sometimes did.
         $this->assertStringContainsString(
             'awaiting clearance',
-            $order->statusHistory()->latest('id')->first()->note,
+            $order->statusHistory()->reorder()->latest('id')->first()->note,
         );
     }
 
